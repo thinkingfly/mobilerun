@@ -1,0 +1,45 @@
+[
+  {
+    "role": "user",
+    "content": "打开抖音点赞",
+    "timestamp": "2026-06-04T21:32:49.895289"
+  },
+  {
+    "role": "assistant",
+    "content": "任务已创建并开始执行: 打开抖音点赞",
+    "timestamp": "2026-06-04T21:32:58.059363",
+    "task_id": "cd3ed417"
+  },
+  {
+    "role": "assistant",
+    "content": "任务已创建并开始执行: 打开抖音点赞",
+    "timestamp": "2026-06-04T21:45:24.902316",
+    "task_id": "1820f5a7"
+  },
+  {
+    "role": "assistant",
+    "content": "任务已创建并开始执行: 打开抖音点赞",
+    "timestamp": "2026-06-04T22:13:06.413503",
+    "task_id": "558d253c"
+  },
+  {
+    "role": "user",
+    "content": "打开微信",
+    "timestamp": "2026-06-05T15:04:43.248759"
+  },
+  {
+    "role": "assistant",
+    "content": "当前没有可用的设备，请先连接设备。",
+    "timestamp": "2026-06-05T15:04:43.250438"
+  },
+  {
+    "role": "user",
+    "content": "打开抖音",
+    "timestamp": "2026-06-05T15:13:22.084363"
+  },
+  {
+    "role": "assistant",
+    "content": "当前没有可用的设备，请先连接设备。",
+    "timestamp": "2026-06-05T15:13:22.084943"
+  }
+]
