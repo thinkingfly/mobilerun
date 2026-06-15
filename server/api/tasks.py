@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Query
 from server.langgraph.tools import execute_goal_async
 from server.models import Task, TaskCreate
 from server.state import state
+from server.storage import storage
 
 logger = logging.getLogger("mobilerun.server")
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -18,11 +19,12 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 @router.get("")
 async def list_tasks(
     status: str = Query(None),
+    type: str = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
 ):
-    """获取任务列表（支持分页）。"""
-    all_tasks = state.list_tasks(status=status)
+    """获取任务列表（支持分页和类型筛选）。"""
+    all_tasks = state.list_tasks(status=status, type=type)
     total = len(all_tasks)
     start = (page - 1) * page_size
     end = start + page_size
@@ -97,7 +99,7 @@ async def create_task(req: TaskCreate):
     state.update_agent(agent_id, status="working", current_task=task_id)
 
     # 调度异步执行
-    asyncio.create_task(execute_goal_async(task_id, req.goal, device_serial, agent_id))
+    asyncio.create_task(execute_goal_async(task_id, req.goal, device_serial, agent_id, req.vision_only))
 
     return task
 
@@ -119,3 +121,40 @@ async def cancel_task(task_id: str):
         state.update_agent(task.agent_id, status="idle", current_task=None)
 
     return {"message": f"Task {task_id} cancelled"}
+
+
+@router.get("/{task_id}/children")
+async def get_child_tasks(task_id: str):
+    """获取某个任务的子任务列表（支持普通任务和定时任务 ID）。"""
+    # 检查是否为普通任务或定时任务
+    task = state.get_task(task_id)
+    st = storage.get_scheduled_task(task_id)
+    if not task and not st:
+        raise HTTPException(status_code=404, detail="Task or Scheduled task not found")
+    children = storage.load_child_tasks(task_id)
+    return {"items": children, "total": len(children)}
+
+
+@router.get("/{task_id}/logs")
+async def get_task_logs(task_id: str):
+    """获取任务的执行日志（从持久化文件读取）。"""
+    import json
+    from pathlib import Path
+
+    log_dir = Path(__file__).parent.parent.parent / "data" / "task_logs"
+    log_file = log_dir / f"{task_id}.jsonl"
+
+    if not log_file.exists():
+        return {"task_id": task_id, "logs": [], "total": 0}
+
+    logs = []
+    with open(log_file, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    logs.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+
+    return {"task_id": task_id, "logs": logs, "total": len(logs)}

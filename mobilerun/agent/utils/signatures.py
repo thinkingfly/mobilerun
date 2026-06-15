@@ -76,11 +76,15 @@ async def build_tool_registry(
             'Usage: {"action": "long_press_at", "x": 500, "y": 300}'
         )
         swipe_description = (
-            "Swipe from screenshot coordinate to coordinate2. Use screenshot "
-            "pixel coordinates shown to the model. The coordinate grid is only "
-            "a reference; do not use grid-cell numbers. Duration is in seconds "
-            "(default: 1.0). "
-            'Usage Example: {"action": "swipe", "coordinate": [x1, y1], "coordinate2": [x2, y2], "duration": 1.5}'
+            "Swipe from coordinate (finger start) to coordinate2 (finger end). "
+            "Use screenshot pixel coordinates. coordinate is where finger touches "
+            "first, coordinate2 is where finger lifts. To see OLDER/earlier content "
+            "(e.g. earlier messages), swipe DOWN: finger moves from TOP to BOTTOM, e.g. "
+            "coordinate=[500,400], coordinate2=[500,1200] (Y INCREASES from 400 to 1200). "
+            "To see NEWER content, swipe UP: finger moves from BOTTOM to TOP, e.g. "
+            "coordinate=[500,1200], coordinate2=[500,400] (Y DECREASES). "
+            "Duration in seconds (default: 1.0). "
+            'Usage: {"action": "swipe", "coordinate": [x1, y1], "coordinate2": [x2, y2]}'
         )
     else:
         click_at_description = (
@@ -97,9 +101,12 @@ async def build_tool_registry(
             'Usage: {"action": "long_press_at", "x": 500, "y": 300}'
         )
         swipe_description = (
-            "Swipe from the position with coordinate to the position with "
-            "coordinate2. Duration is in seconds (default: 1.0). "
-            'Usage Example: {"action": "swipe", "coordinate": [x1, y1], "coordinate2": [x2, y2], "duration": 1.5}'
+            "Swipe from coordinate (finger start) to coordinate2 (finger end). "
+            "coordinate is where finger touches first, coordinate2 is where finger "
+            "lifts. To see OLDER/earlier content, swipe DOWN (finger from top to bottom, "
+            "y increases). To see NEWER content, swipe UP (finger from bottom to top, "
+            "y decreases). Duration in seconds (default: 1.0). "
+            'Usage: {"action": "swipe", "coordinate": [x1, y1], "coordinate2": [x2, y2]}'
         )
 
     # -- Core UI actions -----------------------------------------------------
@@ -273,8 +280,10 @@ async def build_tool_registry(
             fn=open_app,
             params={"text": {"type": "string", "required": True}},
             description=(
-                "Open an app by name or description. "
-                'Usage: {"action": "open_app", "text": "Gmail"}'
+                "Open an app by name, package name, or description. "
+                "Package names (e.g. 'com.tencent.mm') are launched directly and instantly. "
+                "App names (e.g. 'WeChat' or '微信') are matched against installed apps. "
+                'Usage: {"action": "open_app", "text": "com.tencent.mm"} or {"action": "open_app", "text": "Gmail"}'
             ),
             deps={"start_app", "get_apps"},
         )
@@ -294,6 +303,54 @@ async def build_tool_registry(
     )
 
     standard_tool_names = set(registry.tools.keys())
+
+    # -- WeChat tools (Android only) -----------------------------------------
+
+    if platform.lower() == "android":
+        try:
+            from mobilerun.agent.tools.wechat import (
+                wechat_add_friend,
+                wechat_open,
+            )
+
+            registry.register(
+                "wechat_open",
+                fn=wechat_open,
+                params={},
+                description=(
+                    "Open WeChat app and return to the main page. "
+                    "After opening, use vision-only mode to navigate by screenshot coordinates. "
+                    "Typical flow for adding a friend: tap Contacts tab → tap New Friends → tap search bar → "
+                    "type phone number → tap result → tap Add to Contacts. "
+                    "If search opens a chat window (can send messages), user is already a friend — call complete. "
+                    'Usage: {"action": "wechat_open"}'
+                ),
+            )
+
+            registry.register(
+                "wechat_add_friend",
+                fn=wechat_add_friend,
+                params={
+                    "phone_number": {"type": "string", "required": True},
+                },
+                description=(
+                    "Open WeChat and prepare to add a friend by phone number. "
+                    "This tool opens WeChat and returns to the main page. "
+                    "After this, use vision-only mode to: tap Contacts tab → "
+                    "tap New Friends → tap search bar → type the number → "
+                    "tap result → tap Add to Contacts. "
+                    "If searching opens a chat window (can send messages), the user is already a friend — call complete immediately. "
+                    "If the request page shows a 'Send' button, tap it then call complete IMMEDIATELY — do not continue. "
+                    "If tapping Add to Contacts shows a confirmation, call complete after that. "
+                    "Do NOT repeatedly tap the same position. "
+                    'Usage: {"action": "wechat_add_friend", "phone_number": "13800138000"}'
+                ),
+            )
+
+            standard_tool_names.update(["wechat_open", "wechat_add_friend"])
+            logger.debug("Registered WeChat tools for Android platform")
+        except ImportError:
+            logger.debug("WeChat tools not available, skipping registration")
 
     # -- Credential tools (conditional) --------------------------------------
 

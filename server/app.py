@@ -8,6 +8,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.api import agents, chat, devices, tasks, ws
+from server.api import scheduled_tasks
+from server.api import chat_bot
+from server.scheduler import scheduler
 from server.state import state
 
 logger = logging.getLogger("mobilerun.server")
@@ -20,11 +23,14 @@ async def lifespan(app: FastAPI):
     logger.info("Mobilerun Agent Dashboard 启动中...")
     # 启动设备监控
     monitor_task = asyncio.create_task(device_monitor_loop())
+    # 启动定时任务调度器
+    await scheduler.start()
 
     yield
 
     # 关闭
     logger.info("Mobilerun Agent Dashboard 关闭中...")
+    await scheduler.stop()
     monitor_task.cancel()
     try:
         await monitor_task
@@ -69,6 +75,8 @@ def create_app() -> FastAPI:
     app.include_router(agents.router, prefix="/api")
     app.include_router(ws.router, prefix="/api")
     app.include_router(chat.router, prefix="/api")
+    app.include_router(scheduled_tasks.router, prefix="/api")
+    app.include_router(chat_bot.router, prefix="/api")
 
     # 仪表盘统计
     @app.get("/api/stats")

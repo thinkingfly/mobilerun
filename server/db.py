@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     device_serial TEXT NOT NULL,
     goal TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
+    type TEXT NOT NULL DEFAULT 'normal',
     result TEXT,
     created_at TEXT NOT NULL,
     started_at TEXT,
@@ -85,6 +86,43 @@ CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_agent ON chat_messages(agent_id);
 CREATE INDEX IF NOT EXISTS idx_chat_timestamp ON chat_messages(timestamp);
+
+CREATE TABLE IF NOT EXISTS scheduled_tasks (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    agent_id TEXT NOT NULL,
+    goal TEXT NOT NULL,
+    device_serials TEXT NOT NULL,
+    cron_expression TEXT NOT NULL,
+    enabled INTEGER DEFAULT 1,
+    last_run TEXT,
+    next_run TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_scheduled_enabled ON scheduled_tasks(enabled);
+
+-- 聊天记录表：存储从聊天App（微信/WhatsApp等）读取的消息记录
+-- 单聊场景：chat_name=对方联系人名, nick_name=消息发送者
+-- 群聊场景：chat_name=群名, nick_name=该条消息的具体发送者
+CREATE TABLE IF NOT EXISTS chat_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,              -- 数据源标识: wechat / whatsapp / qq 等
+    chat_type TEXT NOT NULL,           -- 聊天类型: single(单聊) / group(群聊)
+    chat_name TEXT NOT NULL,           -- 群名或联系人名（标识这个聊天会话）
+    nick_name TEXT,                    -- 这条消息的发送者昵称
+    avatar TEXT,                       -- 发送者头像URL（可选，预留字段）
+    content TEXT NOT NULL,             -- 消息内容（文本，或[图片]/[表情]等描述）
+    is_self INTEGER DEFAULT 0,         -- 是否是本设备Agent发送的消息: 0=对方发的, 1=自己发的
+    device_id TEXT NOT NULL,           -- 设备序列号（标识是哪台设备读取/发送的）
+    device_user TEXT NOT NULL,         -- Agent在该设备上使用的昵称（默认=设备号，可在代码中配置）
+    created_at TEXT NOT NULL           -- 消息时间（ISO格式，如 2026-06-12T10:30:00）
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_records_source ON chat_records(source);
+CREATE INDEX IF NOT EXISTS idx_chat_records_chat ON chat_records(chat_name, source);
+CREATE INDEX IF NOT EXISTS idx_chat_records_time ON chat_records(created_at);
+CREATE INDEX IF NOT EXISTS idx_chat_records_device ON chat_records(device_id);
 """
 
 
@@ -107,7 +145,29 @@ class SQLiteStorage:
         """执行建表语句。"""
         with self._lock:
             self._conn.executescript(_INIT_SQL)
+            self._migrate_add_type_column()
+            self._migrate_add_parent_task_column()
             self._conn.commit()
+
+    def _migrate_add_type_column(self):
+        """为已有 tasks 表增加 type 列（如果不存在）。"""
+        try:
+            self._conn.execute("SELECT type FROM tasks LIMIT 1")
+        except sqlite3.OperationalError:
+            # 列不存在，添加
+            self._conn.execute("ALTER TABLE tasks ADD COLUMN type TEXT DEFAULT 'normal'")
+            logger.info("Migrated: added 'type' column to tasks table")
+        # 确保索引存在
+        self._conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_type ON tasks(type)")
+
+    def _migrate_add_parent_task_column(self):
+        """为已有 tasks 表增加 parent_task 列（如果不存在）。"""
+        try:
+            self._conn.execute("SELECT parent_task FROM tasks LIMIT 1")
+        except sqlite3.OperationalError:
+            self._conn.execute("ALTER TABLE tasks ADD COLUMN parent_task TEXT DEFAULT '0'")
+            logger.info("Migrated: added 'parent_task' column to tasks table")
+        self._conn.execute("CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_task)")
 
     def _migrate_from_json(self):
         """如果 SQLite 表为空且 JSON 文件存在，自动迁移数据。"""
@@ -178,12 +238,14 @@ class SQLiteStorage:
                     t[key] = t[key].isoformat()
             if "result" in t and isinstance(t["result"], dict):
                 t["result"] = json.dumps(t["result"])
+            t.setdefault("type", "normal")
+            t.setdefault("parent_task", "0")
         self._conn.executemany(
             """INSERT OR REPLACE INTO tasks
                (id, agent_id, device_serial, goal, status, result,
-                created_at, started_at, finished_at, log_count)
+                created_at, started_at, finished_at, log_count, type, parent_task)
                VALUES (:id, :agent_id, :device_serial, :goal, :status, :result,
-                       :created_at, :started_at, :finished_at, :log_count)""",
+                       :created_at, :started_at, :finished_at, :log_count, :type, :parent_task)""",
             tasks,
         )
         self._conn.commit()
@@ -197,13 +259,15 @@ class SQLiteStorage:
                     t[key] = t[key].isoformat()
             if "result" in t and isinstance(t["result"], dict):
                 t["result"] = json.dumps(t["result"])
+            t.setdefault("type", "normal")
+            t.setdefault("parent_task", "0")
             self._conn.execute(
                 """INSERT OR REPLACE INTO tasks
                    (id, agent_id, device_serial, goal, status, result,
-                    created_at, started_at, finished_at, log_count)
+                    created_at, started_at, finished_at, log_count, type, parent_task)
                    VALUES (:id, :agent_id, :device_serial, :goal, :status, :result,
-                           :created_at, :started_at, :finished_at, :log_count)""",
-                task,
+                           :created_at, :started_at, :finished_at, :log_count, :type, :parent_task)""",
+                t,
             )
             self._conn.commit()
 
@@ -235,6 +299,24 @@ class SQLiteStorage:
                 "SELECT * FROM tasks WHERE id = ?", (task_id,)
             ).fetchone()
             return dict(row) if row else None
+
+    def load_child_tasks(self, parent_task_id: str) -> list[dict]:
+        """加载某个父任务的所有子任务。"""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM tasks WHERE parent_task = ? ORDER BY created_at DESC",
+                (parent_task_id,),
+            ).fetchall()
+            result = []
+            for r in rows:
+                d = dict(r)
+                if d.get("result") and isinstance(d["result"], str):
+                    try:
+                        d["result"] = json.loads(d["result"])
+                    except json.JSONDecodeError:
+                        d["result"] = None
+                result.append(d)
+            return result
 
     # ── Agents ──
 
@@ -378,6 +460,259 @@ class SQLiteStorage:
         compressed = [summary_msg] + kept
         self.save_chat(agent_id, compressed)
         return compressed
+
+    # ── Scheduled Tasks ──
+
+    def load_scheduled_tasks(self, enabled_only: bool = False) -> list[dict]:
+        with self._lock:
+            sql = "SELECT * FROM scheduled_tasks"
+            if enabled_only:
+                sql += " WHERE enabled = 1"
+            sql += " ORDER BY created_at DESC"
+            rows = self._conn.execute(sql).fetchall()
+            result = []
+            for r in rows:
+                d = dict(r)
+                if d.get("device_serials") and isinstance(d["device_serials"], str):
+                    try:
+                        d["device_serials"] = json.loads(d["device_serials"])
+                    except json.JSONDecodeError:
+                        d["device_serials"] = []
+                d["enabled"] = bool(d.get("enabled", 1))
+                result.append(d)
+            return result
+
+    def append_scheduled_task(self, task: dict):
+        with self._lock:
+            t = dict(task)
+            for key in ("created_at", "last_run", "next_run"):
+                if key in t and isinstance(t[key], datetime):
+                    t[key] = t[key].isoformat()
+            if "device_serials" in t and isinstance(t["device_serials"], list):
+                t["device_serials"] = json.dumps(t["device_serials"])
+            if "enabled" in t and isinstance(t["enabled"], bool):
+                t["enabled"] = 1 if t["enabled"] else 0
+            self._conn.execute(
+                """INSERT OR REPLACE INTO scheduled_tasks
+                   (id, task_id, agent_id, goal, device_serials, cron_expression,
+                    enabled, last_run, next_run, created_at)
+                   VALUES (:id, :task_id, :agent_id, :goal, :device_serials, :cron_expression,
+                           :enabled, :last_run, :next_run, :created_at)""",
+                t,
+            )
+            self._conn.commit()
+
+    def update_scheduled_task(self, task_id: str, updates: dict):
+        with self._lock:
+            vals = dict(updates)
+            if "device_serials" in vals and isinstance(vals["device_serials"], list):
+                vals["device_serials"] = json.dumps(vals["device_serials"])
+            for key in ("last_run", "next_run"):
+                if key in vals and isinstance(vals[key], datetime):
+                    vals[key] = vals[key].isoformat()
+            if "enabled" in vals and isinstance(vals["enabled"], bool):
+                vals["enabled"] = 1 if vals["enabled"] else 0
+            sets = ", ".join(f"{k} = ?" for k in vals)
+            vlist = list(vals.values()) + [task_id]
+            self._conn.execute(f"UPDATE scheduled_tasks SET {sets} WHERE id = ?", vlist)
+            self._conn.commit()
+
+    def get_scheduled_task(self, task_id: str) -> Optional[dict]:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM scheduled_tasks WHERE id = ?", (task_id,)
+            ).fetchone()
+            if not row:
+                return None
+            d = dict(row)
+            if d.get("device_serials") and isinstance(d["device_serials"], str):
+                try:
+                    d["device_serials"] = json.loads(d["device_serials"])
+                except json.JSONDecodeError:
+                    d["device_serials"] = []
+            d["enabled"] = bool(d.get("enabled", 1))
+            return d
+
+    def remove_scheduled_task(self, task_id: str):
+        with self._lock:
+            self._conn.execute("DELETE FROM scheduled_tasks WHERE id = ?", (task_id,))
+            self._conn.commit()
+
+    # ── Chat Records (聊天 Bot 专用) ──
+
+    def save_chat_record(self, record: dict) -> int:
+        """保存单条聊天记录（自动去重）。返回新记录的 id，重复则返回 -1。"""
+        with self._lock:
+            r = dict(record)
+            now = datetime.now().isoformat()
+            if "created_at" in r and isinstance(r["created_at"], datetime):
+                r["created_at"] = r["created_at"].isoformat()
+            r.setdefault("created_at", now)
+            if "is_self" in r and isinstance(r["is_self"], bool):
+                r["is_self"] = 1 if r["is_self"] else 0
+            r.setdefault("nick_name", None)
+            r.setdefault("avatar", None)
+            r.setdefault("is_self", 0)
+
+            # 去重检查
+            dup = self._conn.execute(
+                "SELECT id FROM chat_records "
+                "WHERE source = ? AND chat_name = ? AND device_id = ? "
+                "AND nick_name = ? AND content = ? LIMIT 1",
+                (r.get("source", ""), r.get("chat_name", ""),
+                 r.get("device_id", ""), r.get("nick_name"),
+                 r.get("content", "")),
+            ).fetchone()
+            if dup:
+                return -1
+
+            cursor = self._conn.execute(
+                """INSERT INTO chat_records
+                   (source, chat_type, chat_name, nick_name, avatar, content,
+                    is_self, device_id, device_user, created_at)
+                   VALUES (:source, :chat_type, :chat_name, :nick_name, :avatar, :content,
+                           :is_self, :device_id, :device_user, :created_at)""",
+                r,
+            )
+            self._conn.commit()
+            return cursor.lastrowid
+
+    def save_chat_records(self, records: list[dict]) -> list[int]:
+        """批量保存聊天记录（自动去重）。返回新记录的 id 列表。
+
+        去重逻辑：同一聊天会话（source + chat_name + device_id）中，
+        如果 nick_name + content 完全相同的记录已存在，则跳过。
+        """
+        ids = []
+        now = datetime.now().isoformat()
+
+        with self._lock:
+            # 加载此聊天会话已有的消息，用于去重
+            if records:
+                sample = records[0]
+                existing_rows = self._conn.execute(
+                    "SELECT nick_name, content FROM chat_records "
+                    "WHERE source = ? AND chat_name = ? AND device_id = ?",
+                    (sample.get("source", ""), sample.get("chat_name", ""),
+                     sample.get("device_id", "")),
+                ).fetchall()
+                existing = {
+                    (r["nick_name"], r["content"]) for r in existing_rows
+                }
+            else:
+                existing = set()
+
+            for record in records:
+                r = dict(record)
+                if "created_at" in r and isinstance(r["created_at"], datetime):
+                    r["created_at"] = r["created_at"].isoformat()
+                r.setdefault("created_at", now)
+                if "is_self" in r and isinstance(r["is_self"], bool):
+                    r["is_self"] = 1 if r["is_self"] else 0
+                r.setdefault("nick_name", None)
+                r.setdefault("avatar", None)
+                r.setdefault("is_self", 0)
+
+                # 去重：nick_name + content 相同则跳过
+                dedup_key = (r.get("nick_name"), r.get("content", ""))
+                if dedup_key in existing:
+                    continue
+                existing.add(dedup_key)
+
+                cursor = self._conn.execute(
+                    """INSERT INTO chat_records
+                       (source, chat_type, chat_name, nick_name, avatar, content,
+                        is_self, device_id, device_user, created_at)
+                       VALUES (:source, :chat_type, :chat_name, :nick_name, :avatar, :content,
+                               :is_self, :device_id, :device_user, :created_at)""",
+                    r,
+                )
+                ids.append(cursor.lastrowid)
+            self._conn.commit()
+        return ids
+
+    def get_chat_history(
+        self, chat_name: str = None, source: str = None, device_id: str = None, limit: int = 100
+    ) -> list[dict]:
+        """获取指定聊天的最近 N 条消息（按时间正序）。
+
+        chat_name 和 source 均为可选，不传时返回全局最近消息。
+        """
+        with self._lock:
+            conditions = []
+            params = []
+            if chat_name:
+                conditions.append("chat_name = ?")
+                params.append(chat_name)
+            if source:
+                conditions.append("source = ?")
+                params.append(source)
+            if device_id:
+                conditions.append("device_id = ?")
+                params.append(device_id)
+
+            where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            params.append(limit)
+
+            rows = self._conn.execute(
+                f"""SELECT * FROM chat_records
+                    {where}
+                    ORDER BY created_at DESC LIMIT ?""",
+                params,
+            ).fetchall()
+            result = [dict(r) for r in rows]
+            result.reverse()  # 按时间正序
+            for r in result:
+                r["is_self"] = bool(r.get("is_self", 0))
+            return result
+
+    def get_recent_chats(self, source: str = None, device_id: str = None, limit: int = 10) -> list[dict]:
+        """获取最近的聊天列表（按 chat_name 分组，返回每个聊天的最新消息）。"""
+        with self._lock:
+            conditions = []
+            params = []
+            if source:
+                conditions.append("source = ?")
+                params.append(source)
+            if device_id:
+                conditions.append("device_id = ?")
+                params.append(device_id)
+
+            where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+            rows = self._conn.execute(
+                f"""SELECT chat_name, source, chat_type, device_id, device_user,
+                           MAX(created_at) as last_message_time,
+                           COUNT(*) as message_count
+                    FROM chat_records
+                    {where}
+                    GROUP BY chat_name, source, device_id
+                    ORDER BY last_message_time DESC
+                    LIMIT ?""",
+                params + [limit],
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_chat_record_count(self, chat_name: str = None, source: str = None, device_id: str = None) -> int:
+        """获取聊天记录数量。"""
+        with self._lock:
+            conditions = []
+            params = []
+            if chat_name:
+                conditions.append("chat_name = ?")
+                params.append(chat_name)
+            if source:
+                conditions.append("source = ?")
+                params.append(source)
+            if device_id:
+                conditions.append("device_id = ?")
+                params.append(device_id)
+
+            where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            count = self._conn.execute(
+                f"SELECT COUNT(*) FROM chat_records {where}", params
+            ).fetchone()[0]
+            return count
 
     def close(self):
         """关闭数据库连接。"""

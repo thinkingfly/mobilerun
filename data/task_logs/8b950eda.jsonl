@@ -1,0 +1,6 @@
+{"seq": 1, "msg": "🚀 Starting: 打开微信瞎聊群，查看最近的聊天记录，自动回复相关内容", "color": "magenta", "level": 20, "timestamp": "2026-06-10T20:22:43.584822"}
+{"seq": 2, "msg": "🤖 Agent mode: direct execution", "color": "cyan", "level": 20, "timestamp": "2026-06-10T20:22:43.612371"}
+{"seq": 3, "msg": "👁️ Vision mode: reasoning=False, vision_only=True, Manager.vision=True, Executor.vision=True, FastAgent.vision=True", "color": "cyan", "level": 20, "timestamp": "2026-06-10T20:22:43.612992"}
+{"seq": 4, "msg": "🚀 Running MobileAgent to achieve goal: 打开微信瞎聊群，查看最近的聊天记录，自动回复相关内容", "color": "magenta", "level": 20, "timestamp": "2026-06-10T20:22:43.613595"}
+{"seq": 5, "msg": "🔄 Step 1/25", "color": "magenta", "level": 10, "timestamp": "2026-06-10T20:22:43.746343"}
+{"seq": 6, "msg": "💬 Task input received...", "color": null, "level": 10, "timestamp": "2026-06-10T20:22:43.766475"}

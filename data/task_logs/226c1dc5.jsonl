@@ -1,0 +1,16 @@
+{"seq": 1, "msg": "🚀 Starting: 打开设置", "color": "magenta", "level": 20, "timestamp": "2026-06-12T16:37:00.579700"}
+{"seq": 2, "msg": "🤖 Agent mode: direct execution", "color": "cyan", "level": 20, "timestamp": "2026-06-12T16:37:00.580801"}
+{"seq": 3, "msg": "👁️ Vision mode: reasoning=False, vision_only=False, Manager.vision=False, Executor.vision=False, FastAgent.vision=False", "color": "cyan", "level": 20, "timestamp": "2026-06-12T16:37:00.581423"}
+{"seq": 4, "msg": "🚀 Running MobileAgent to achieve goal: 打开设置", "color": "magenta", "level": 20, "timestamp": "2026-06-12T16:37:00.582096"}
+{"seq": 5, "msg": "🔄 Step 1/25", "color": "magenta", "level": 10, "timestamp": "2026-06-12T16:37:00.683745"}
+{"seq": 6, "msg": "💬 Task input received...", "color": null, "level": 10, "timestamp": "2026-06-12T16:37:00.702333"}
+{"seq": 7, "msg": "🧠 Thinking: I'll open the Settings app using its package name.", "color": "cyan", "level": 10, "timestamp": "2026-06-12T16:37:43.285496"}
+{"seq": 8, "msg": "⚡ Executing tool calls...", "color": "yellow", "level": 10, "timestamp": "2026-06-12T16:37:43.287757"}
+{"seq": 9, "msg": "⚡ Action result: <function_results>\n<result>\n<name>open_app</name>\n<output>App started: com.android.settings with act...", "color": "green", "level": 10, "timestamp": "2026-06-12T16:37:45.387337"}
+{"seq": 10, "msg": "💬 Task input received...", "color": null, "level": 10, "timestamp": "2026-06-12T16:37:45.391480"}
+{"seq": 11, "msg": "✏️ Recording UI state", "color": null, "level": 10, "timestamp": "2026-06-12T16:37:46.544317"}
+{"seq": 12, "msg": "🧠 Thinking: 设置已成功打开。可以看到设置主页面，包含WLAN、蓝牙、移动网络、显示和亮度等选项。", "color": "cyan", "level": 10, "timestamp": "2026-06-12T16:37:51.379528"}
+{"seq": 13, "msg": "⚡ Executing tool calls...", "color": "yellow", "level": 10, "timestamp": "2026-06-12T16:37:51.382746"}
+{"seq": 14, "msg": "■ done: 设置应用已成功打开。 (2 runs)", "color": "green", "level": 10, "timestamp": "2026-06-12T16:37:51.385103"}
+{"seq": 15, "msg": "■ done: 设置应用已成功打开。 (2 runs)", "color": "green", "level": 10, "timestamp": "2026-06-12T16:37:51.387405"}
+{"seq": 16, "msg": "🎉 Goal achieved: 设置应用已成功打开。", "color": "green", "level": 20, "timestamp": "2026-06-12T16:37:51.392301"}

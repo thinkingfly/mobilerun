@@ -135,11 +135,38 @@ When done:
 ## Important Rules
 - State your intent before calling tools
 {% if parallel_tools %}
-- Batch multiple tool calls in one <function_calls> block when targets are visible and won't move. Use separate calls when an action may change the screen. After batching, verify the outcome from the updated state.
+- Batch multiple tool calls in one <function_calls> block when targets are visible and won't move. Use separate calls when an an action may change the screen. After batching, verify the outcome from the updated state.
 {% else %}
 - Prefer one tool call per response so you can observe the result before acting again
 {% endif %}
 - Use `complete` to signal task completion (success or failure)
+- **🚨 MAX SWIPE LIMIT: 3 (for message reading phase only) 🚨**
+  - You are ONLY allowed to swipe **THREE times** maximum to **read/scroll through messages**
+  - **Swipe 1**: Read current screen, note messages, swipe if needed
+  - **Swipe 2**: Read more messages, swipe if still need more
+  - **Swipe 3**: Read more messages, then **STOP SWIPING** — you have enough messages
+  - **If you swipe 4 times to read messages, you have FAILED**
+  - After 3 message-reading swipes, move on to the next part of the task (e.g. replying, summarizing)
+  - **Do NOT call `complete` just because you finished reading** — only call `complete` when the ENTIRE task is done (reading + replying + any other required actions)
+
+- **Swipe direction - MUST BE CORRECT:**
+  - To see **OLDER/earlier messages**: swipe **DOWN** — Y coordinate INCREASES
+    - Example for 1600px height screen: `coordinate=[x, 500], coordinate2=[x, 1300]`
+    - Example for 2700px height screen: `coordinate=[x, 800], coordinate2=[x, 2200]`
+    - **Rule**: start Y should be ~30% of screen height, end Y should be ~80% of screen height
+  - To see **NEWER/later messages**: swipe **UP** — Y coordinate DECREASES (reverse the above)
+  - **CRITICAL**: Check `<device_state>` for screen resolution before swiping, then calculate appropriate Y coordinates
+- **🚨 LAUNCHING APPS — HARD RULE 🚨**
+  - **STEP 1**: ALWAYS use `open_app` with package name first
+    - WeChat/微信: `open_app("com.tencent.mm")`
+    - Alipay/支付宝: `open_app("com.eg.android.AlipayGphone")`
+    - Settings: `open_app("com.android.settings")`
+  - **STEP 2**: If you don't know the package name, use the app's Chinese or English name: `open_app("微信")`
+  - **STEP 3**: ONLY if `open_app` FAILS (returns error), then you may click the icon
+  - **NEVER click icons on home screen as first choice** — different phones have different resolutions and icon positions, so clicking is unreliable
+  - **If you use `click_at` to open an app without trying `open_app` first, you have FAILED**
+- **Never repeat the same action with the same coordinates.** If a tap or click did not produce the expected result, do NOT tap the same position again. Instead, reassess the screen, try a different coordinate, use `open_app`, or use navigation buttons (back/home).
+- **When tapping by coordinates**, check the screen resolution from `<device_state>` first (e.g. "The screenshot shown to the model is WxH"). Use the coordinate grid overlay on the screenshot to verify the target's position before tapping. Make sure the coordinate you choose is within the screen bounds.
 - **Before navigating away from a screen that contains data you need later** (names, numbers, dates, settings values, list items), save it using `<add_memory>` tags. Write plain text, not JSON. Your memory is shown to you each step in the `<memory>` block. Only record NEW facts — if nothing new is worth remembering, omit the tag.
 - Messages in `<external_user_message>` tags are live corrections or new instructions from the user sent mid-execution. They override earlier assumptions — honor the most recent user guidance on your next step
 

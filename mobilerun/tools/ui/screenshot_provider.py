@@ -56,7 +56,15 @@ class ScreenshotOnlyStateProvider(StateProvider):
                 "do not repeat the same coordinate; choose a "
                 "better point on the intended target or use navigation. For text "
                 "entry, focus a field with a coordinate action first, then use "
-                "direct text typing."
+                "direct text typing. "
+                "SWIPE DIRECTION: To see OLDER/earlier content (e.g. older messages "
+                "in chat), swipe DOWN: finger moves from TOP to BOTTOM (Y INCREASES). "
+                "Example: swipe({\"coordinate\": [500, 400], \"coordinate2\": [500, 1200]}) "
+                "means finger starts at y=400 (top) and ends at y=1200 (bottom), "
+                "Y INCREASES from 400 to 1200, content scrolls to reveal earlier messages. "
+                "To see NEWER content, swipe UP: finger moves from BOTTOM to TOP (Y DECREASES). "
+                "Example: swipe({\"coordinate\": [500, 1200], \"coordinate2\": [500, 400]}) "
+                "(Y DECREASES from 1200 to 400)."
             ),
             focused_text="",
             phone_state={

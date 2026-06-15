@@ -61,7 +61,9 @@ No actions have been taken yet.
 ### Key Rules
 - Close popups (permission requests) before proceeding
 - Always activate input box (click it) before typing
-- Use `open_app` to launch apps, not the app drawer
+- **Launching apps: ALWAYS prefer `open_app`** (e.g. "com.tencent.mm" for WeChat/微信). Only if `open_app` fails, fall back to tapping icon — but verify position against coordinate grid first
+- NEVER repeat the same tap coordinate. If a tap failed, try a different approach
+- **When tapping by coordinates**, verify position against coordinate grid and screen resolution first
 - Try different swipe directions if content doesn't change
 
 ---

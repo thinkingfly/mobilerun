@@ -1,0 +1,4 @@
+{"seq": 1, "msg": "🚀 Starting: 打开whatsapp，查看\"孙健\"的消息，自动回复\n\n重要：在执行回复操作之前，必须先确认当前所在的聊天窗口是正确的。请查看屏幕顶部的群名或联系人名称，确认与目标一致后再输入和发送消息。如果发现不在正确的聊天窗口，不要发送任何消息，直接报告错误。", "color": "magenta", "level": 20, "timestamp": "2026-06-12T17:30:44.749383"}
+{"seq": 2, "msg": "🤖 Agent mode: direct execution", "color": "cyan", "level": 20, "timestamp": "2026-06-12T17:30:44.750959"}
+{"seq": 3, "msg": "👁️ Vision mode: reasoning=False, vision_only=True, Manager.vision=True, Executor.vision=True, FastAgent.vision=True", "color": "cyan", "level": 20, "timestamp": "2026-06-12T17:30:44.751566"}
+{"seq": 4, "msg": "🚀 Running MobileAgent to achieve goal: 打开whatsapp，查看\"孙健\"的消息，自动回复\n\n重要：在执行回复操作之前，必须先确认当前所在的聊天窗口是正确的。请查看屏幕顶部的群名或联系人名称，确认与目标一致后再输入和发送消息。如果发现不在正确的聊天窗口，不要发送任何消息，直接报告错误。", "color": "magenta", "level": 20, "timestamp": "2026-06-12T17:30:44.752240"}

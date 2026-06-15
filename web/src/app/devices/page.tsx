@@ -38,11 +38,11 @@ export default function DevicesPage() {
   }, []);
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-8 space-y-8 animate-fade-in-up">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">设备管理</h1>
-          <p className="text-text-secondary mt-1">
+          <p className="text-text-secondary mt-1 text-sm">
             共 {devices.length} 台设备
           </p>
         </div>
@@ -51,11 +51,9 @@ export default function DevicesPage() {
             setRefreshing(true);
             fetchDevices();
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-bg-tertiary border border-border rounded-lg text-sm text-text-secondary hover:text-text-primary transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-bg-tertiary border border-border rounded-lg text-sm text-text-secondary hover:text-text-primary hover:border-accent-blue/30 transition-all duration-200"
         >
-          <RefreshCw
-            className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}
-          />
+          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           刷新
         </button>
       </div>
@@ -71,43 +69,53 @@ export default function DevicesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {devices.map((device) => (
-            <div
-              key={device.serial}
-              className="bg-bg-secondary border border-border rounded-xl p-6 space-y-4"
-            >
-              <div className="flex items-start justify-between">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-mono text-text-primary truncate">
-                    {device.serial}
-                  </p>
-                  <p className="text-xs text-text-muted mt-1">
-                    {device.platform}
-                  </p>
-                </div>
-                <StatusBadge status={device.state} />
-              </div>
-
-              <div className="space-y-2 text-xs text-text-muted">
-                {device.current_task && (
-                  <p>当前任务: {device.current_task}</p>
-                )}
-                {device.last_seen && (
-                  <p>
-                    最后在线:{' '}
-                    {new Date(device.last_seen).toLocaleTimeString('zh-CN')}
-                  </p>
-                )}
-              </div>
-
-              <button
-                onClick={() => refreshDevice(device.serial)}
-                className="w-full py-2 text-xs text-text-secondary bg-bg-tertiary border border-border rounded-lg hover:text-text-primary transition-colors"
+          {devices.map((device) => {
+            const isOnline = device.state !== 'offline';
+            return (
+              <div
+                key={device.serial}
+                className={`group bg-bg-secondary border rounded-xl p-6 space-y-4 transition-all duration-200 hover:shadow-[0_4px_20px_rgb(var(--accent-blue)/0.06)] hover:-translate-y-0.5 ${
+                  isOnline
+                    ? 'border-l-2 border-l-accent-green border-border'
+                    : 'border-border opacity-60'
+                }`}
               >
-                刷新状态
-              </button>
-            </div>
-          ))}
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-mono text-text-primary truncate">
+                      {device.serial}
+                    </p>
+                    <p className="text-xs text-text-muted mt-1">
+                      {device.platform}
+                    </p>
+                  </div>
+                  <StatusBadge status={device.state} />
+                </div>
+
+                <div className="space-y-2 text-xs text-text-muted">
+                  {device.current_task && (
+                    <p className="flex items-center gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-accent-blue" />
+                      当前任务: {device.current_task}
+                    </p>
+                  )}
+                  {device.last_seen && (
+                    <p>
+                      最后在线:{' '}
+                      {new Date(device.last_seen).toLocaleTimeString('zh-CN')}
+                    </p>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => refreshDevice(device.serial)}
+                  className="w-full py-2 text-xs text-text-secondary bg-bg-tertiary border border-border rounded-lg hover:text-text-primary hover:border-accent-blue/30 transition-all duration-200"
+                >
+                  刷新状态
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

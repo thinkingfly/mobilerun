@@ -20,9 +20,10 @@ export const api = {
   },
   // Tasks
   tasks: {
-    list: (params?: { status?: string; page?: number; page_size?: number }) => {
+    list: (params?: { status?: string; type?: string; page?: number; page_size?: number }) => {
       const qs = new URLSearchParams();
       if (params?.status) qs.set('status', params.status);
+      if (params?.type) qs.set('type', params.type);
       if (params?.page) qs.set('page', String(params.page));
       if (params?.page_size) qs.set('page_size', String(params.page_size));
       const query = qs.toString();
@@ -32,6 +33,8 @@ export const api = {
     create: (data: { goal: string; device_serial?: string; agent_id?: string }) =>
       request('/tasks', { method: 'POST', body: JSON.stringify(data) }),
     cancel: (id: string) => request(`/tasks/${id}/cancel`, { method: 'POST' }),
+    children: (id: string) => request(`/tasks/${id}/children`),
+    logs: (id: string) => request(`/tasks/${id}/logs`),
   },
   // Agents
   agents: {
@@ -46,12 +49,23 @@ export const api = {
   },
   // Chat
   chat: {
-    send: (message: string, agent_id?: string) =>
-      request('/chat', { method: 'POST', body: JSON.stringify({ message, agent_id }) }),
+    send: (message: string, agent_id?: string, device_serials?: string[]) =>
+      request('/chat', { method: 'POST', body: JSON.stringify({ message, agent_id, device_serials }) }),
     getHistory: (agent_id: string) => request(`/chat/${agent_id}/history`),
     clearHistory: (agent_id: string) => request(`/chat/${agent_id}/history`, { method: 'DELETE' }),
     compressHistory: (agent_id: string, keepLast?: number) =>
       request(`/chat/${agent_id}/history/compress?keep_last=${keepLast || 10}`, { method: 'POST' }),
+  },
+  // Scheduled Tasks
+  scheduledTasks: {
+    list: () => request('/scheduled-tasks'),
+    get: (id: string) => request(`/scheduled-tasks/${id}`),
+    create: (data: { goal: string; device_serials: string[]; cron_expression: string }) =>
+      request('/scheduled-tasks', { method: 'POST', body: JSON.stringify(data) }),
+    delete: (id: string) => request(`/scheduled-tasks/${id}`, { method: 'DELETE' }),
+    toggle: (id: string) => request(`/scheduled-tasks/${id}/toggle`, { method: 'POST' }),
+    cancel: (id: string) => request(`/scheduled-tasks/${id}/cancel`, { method: 'POST' }),
+    history: (id: string) => request(`/scheduled-tasks/${id}/history`),
   },
   // Stats
   stats: () => request('/stats'),

@@ -8,6 +8,7 @@ blocks, the agent parses them, executes the tools via ToolRegistry, and feeds
 import asyncio
 import copy
 import logging
+import math
 import os
 from typing import TYPE_CHECKING, Optional, Type
 
@@ -105,6 +106,9 @@ class FastAgent(Workflow):
 
         self.system_prompt: ChatMessage | None = None
         self.tool_call_counter = 0
+        self._last_tool_signature: str = ""  # dedup: prevents identical tool repeats
+        self._last_tool_name: str = ""  # last executed tool name
+        self._last_click_xy: tuple[int, int] | None = None  # last click coordinates
 
         # Build tool descriptions and param types from registry
         self.tool_descriptions = self.registry.get_tool_descriptions_xml()
@@ -453,6 +457,72 @@ class FastAgent(Workflow):
 
         for call in tool_calls:
             logger.debug(f"Executing: {call.name}({call.parameters})")
+
+            # Build a signature for this tool call to detect exact repeats
+            params_repr = ",".join(
+                f"{k}={v}" for k, v in sorted((call.parameters or {}).items())
+            )
+            sig = f"{call.name}({params_repr})"
+
+            # Block repeated identical tool calls (same name + same params)
+            if sig == self._last_tool_signature and call.name in (
+                "click_at",
+                "click",
+                "click_area",
+                "long_press",
+                "long_press_at",
+                "swipe",
+            ):
+                logger.warning(f"⛔ Blocking repeated tool call: {sig}")
+                action_result = ActionResult(
+                    success=False,
+                    summary=(
+                        f"BLOCKED: you have tapped the same position twice in a row. "
+                        f"Do NOT tap ({params_repr}) again — reassess the screen, "
+                        f"try a different coordinate, use open_app, or use navigation buttons."
+                    ),
+                )
+                results.append(
+                    ToolResult(
+                        name=call.name,
+                        output=action_result.summary,
+                        is_error=True,
+                    )
+                )
+                continue
+
+            # For click_at, also block nearby coordinates (within 80px) after a failed tap
+            if call.name == "click_at":
+                px = call.parameters.get("x", 0)
+                py = call.parameters.get("y", 0)
+                if self._last_tool_name == "click_at" and self._last_click_xy:
+                    lx, ly = self._last_click_xy
+                    dist = math.hypot(px - lx, py - ly)
+                    if dist < 80:
+                        logger.warning(
+                            f"⛔ Blocking nearby click ({px},{py}) "
+                            f"only {dist:.0f}px from last tap ({lx},{ly})"
+                        )
+                        action_result = ActionResult(
+                            success=False,
+                            summary=(
+                                f"BLOCKED: tapping ({px},{py}) is too close to your last tap "
+                                f"at ({lx},{ly}) — only {dist:.0f}px apart. "
+                                f"The previous tap had no visible effect. "
+                                f"Try a COMPLETELY different approach: use open_app, "
+                                f"system_button back/home, swipe to scroll, or click a "
+                                f"visibly different location on the screen."
+                            ),
+                        )
+                        results.append(
+                            ToolResult(
+                                name=call.name,
+                                output=action_result.summary,
+                                is_error=True,
+                            )
+                        )
+                        continue
+
             self.tool_call_counter += 1
 
             # Skip execution if parsing failed
@@ -473,6 +543,14 @@ class FastAgent(Workflow):
                     is_error=not action_result.success,
                 )
             )
+            # Track last tool for dedup (update after every execution)
+            self._last_tool_signature = sig
+            self._last_tool_name = call.name
+            if call.name == "click_at" and call.parameters:
+                self._last_click_xy = (
+                    call.parameters.get("x", 0),
+                    call.parameters.get("y", 0),
+                )
 
             # Check if complete() was called successfully
             if self.shared_state.finished:

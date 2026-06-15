@@ -1,0 +1,14 @@
+{"seq": 1, "msg": "🚀 Starting: 打开微信，添加好友，手机号：18519505432", "color": "magenta", "level": 20, "timestamp": "2026-06-12T21:55:24.831249"}
+{"seq": 2, "msg": "🤖 Agent mode: direct execution", "color": "cyan", "level": 20, "timestamp": "2026-06-12T21:55:24.832063"}
+{"seq": 3, "msg": "👁️ Vision mode: reasoning=False, vision_only=False, Manager.vision=False, Executor.vision=False, FastAgent.vision=False", "color": "cyan", "level": 20, "timestamp": "2026-06-12T21:55:24.832623"}
+{"seq": 4, "msg": "🚀 Running MobileAgent to achieve goal: 打开微信，添加好友，手机号：18519505432", "color": "magenta", "level": 20, "timestamp": "2026-06-12T21:55:24.833246"}
+{"seq": 5, "msg": "🔄 Step 1/25", "color": "magenta", "level": 10, "timestamp": "2026-06-12T21:55:24.940734"}
+{"seq": 6, "msg": "💬 Task input received...", "color": null, "level": 10, "timestamp": "2026-06-12T21:55:24.957195"}
+{"seq": 7, "msg": "🧠 Thinking: I need to open WeChat, then navigate to the \"Add Friends\" section and search for the phone number 18519505432.\n\nLet me start by opening WeChat.", "color": "cyan", "level": 10, "timestamp": "2026-06-12T21:56:07.471878"}
+{"seq": 8, "msg": "⚡ Executing tool calls...", "color": "yellow", "level": 10, "timestamp": "2026-06-12T21:56:07.474463"}
+{"seq": 9, "msg": "⚡ Action result: <function_results>\n<result>\n<name>open_app</name>\n<output>App started: com.tencent.mm with activity ...", "color": "green", "level": 10, "timestamp": "2026-06-12T21:56:09.575741"}
+{"seq": 10, "msg": "💬 Task input received...", "color": null, "level": 10, "timestamp": "2026-06-12T21:56:09.580420"}
+{"seq": 11, "msg": "🧠 Thinking: WeChat is open. I'll navigate to the Contacts tab to find the \"Add Friends\" option.", "color": "cyan", "level": 10, "timestamp": "2026-06-12T21:56:55.949716"}
+{"seq": 12, "msg": "⚡ Executing tool calls...", "color": "yellow", "level": 10, "timestamp": "2026-06-12T21:56:55.951862"}
+{"seq": 13, "msg": "⚡ Action result: <function_results>\n<result>\n<name>click</name>\n<error>Failed to execute click: 'NoneType' object has...", "color": "green", "level": 10, "timestamp": "2026-06-12T21:56:56.955756"}
+{"seq": 14, "msg": "💬 Task input received...", "color": null, "level": 10, "timestamp": "2026-06-12T21:56:56.959610"}

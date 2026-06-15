@@ -33,6 +33,9 @@ class Storage:
     def get_task(self, task_id: str) -> Optional[dict]:
         return sqlite_db.get_task(task_id)
 
+    def load_child_tasks(self, parent_task_id: str) -> list[dict]:
+        return sqlite_db.load_child_tasks(parent_task_id)
+
     # ── Agents ──
 
     def load_agents(self) -> list[dict]:
@@ -70,6 +73,46 @@ class Storage:
 
     def compress_chat(self, agent_id: str, keep_last: int = 10) -> list[dict]:
         return sqlite_db.compress_chat(agent_id, keep_last)
+
+    # ── Scheduled Tasks ──
+
+    def load_scheduled_tasks(self, enabled_only: bool = False) -> list[dict]:
+        return sqlite_db.load_scheduled_tasks(enabled_only=enabled_only)
+
+    def append_scheduled_task(self, task: dict):
+        sqlite_db.append_scheduled_task(task)
+
+    def update_scheduled_task(self, task_id: str, updates: dict):
+        sqlite_db.update_scheduled_task(task_id, updates)
+
+    def get_scheduled_task(self, task_id: str) -> Optional[dict]:
+        return sqlite_db.get_scheduled_task(task_id)
+
+    def remove_scheduled_task(self, task_id: str):
+        sqlite_db.remove_scheduled_task(task_id)
+
+    # ── Chat Records (聊天 Bot) ──
+
+    def save_chat_record(self, record: dict) -> int:
+        return sqlite_db.save_chat_record(record)
+
+    def save_chat_records(self, records: list[dict]) -> list[int]:
+        return sqlite_db.save_chat_records(records)
+
+    def get_chat_history(
+        self, chat_name: str = None, source: str = None, device_id: str = None, limit: int = 100
+    ) -> list[dict]:
+        return sqlite_db.get_chat_history(
+            chat_name=chat_name, source=source, device_id=device_id, limit=limit
+        )
+
+    def get_recent_chats(self, source: str = None, device_id: str = None, limit: int = 10) -> list[dict]:
+        return sqlite_db.get_recent_chats(source=source, device_id=device_id, limit=limit)
+
+    def get_chat_record_count(self, chat_name: str = None, source: str = None, device_id: str = None) -> int:
+        return sqlite_db.get_chat_record_count(
+            chat_name=chat_name, source=source, device_id=device_id
+        )
 
 
 storage = Storage()

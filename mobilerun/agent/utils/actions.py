@@ -7,6 +7,7 @@ interacts with the device via ``ctx.driver``, resolves UI elements via
 
 import asyncio
 import logging
+import re
 from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:
@@ -18,6 +19,41 @@ from mobilerun.agent.oneflows.app_starter_workflow import AppStarter
 logger = logging.getLogger("mobilerun")
 
 _MACRO_FOCUS_SETTLE_SECONDS = 0.5
+
+# ---------------------------------------------------------------------------
+# Repeated-click guard
+# ---------------------------------------------------------------------------
+# Tracks recent (x, y) click coordinates per agent to detect loops.
+# Key: id(ctx.shared_state), Value: list of (x, y) tuples (most recent last).
+_RECENT_CLICKS: dict[int, list[tuple[int, int]]] = {}
+_CLICK_REPEAT_THRESHOLD = 3  # block after this many identical consecutive clicks
+_CLICK_WINDOW = 30  # pixels — clicks within this radius count as "same spot"
+
+
+def _is_repeated_click(ctx: "ActionContext", x: int, y: int) -> bool:
+    """Return True if (x, y) is within _CLICK_WINDOW of the last N clicks."""
+    key = id(ctx.shared_state)
+    history = _RECENT_CLICKS.get(key, [])
+    if len(history) < _CLICK_REPEAT_THRESHOLD:
+        return False
+    recent = history[-_CLICK_REPEAT_THRESHOLD:]
+    return all(abs(rx - x) <= _CLICK_WINDOW and abs(ry - y) <= _CLICK_WINDOW for rx, ry in recent)
+
+
+def _record_click(ctx: "ActionContext", x: int, y: int) -> None:
+    """Record a click coordinate for repeat detection."""
+    key = id(ctx.shared_state)
+    history = _RECENT_CLICKS.setdefault(key, [])
+    history.append((x, y))
+    # Keep only the last 10 clicks
+    if len(history) > 10:
+        _RECENT_CLICKS[key] = history[-10:]
+
+
+def _clear_click_history(ctx: "ActionContext") -> None:
+    """Reset click history (called after a non-click action succeeds)."""
+    key = id(ctx.shared_state)
+    _RECENT_CLICKS.pop(key, None)
 
 
 # ---------------------------------------------------------------------------
@@ -134,9 +170,26 @@ def _record_driver_log_delta(
 async def click(index: int, *, ctx: "ActionContext") -> ActionResult:
     """Click the element with the given index."""
     try:
-        pre_ui = await _macro_pre_ui(ctx)
         x, y = ctx.ui.get_element_coords(index)
+
+        if _is_repeated_click(ctx, x, y):
+            _clear_click_history(ctx)
+            try:
+                await ctx.driver.press_button("back")
+            except Exception:
+                pass
+            return ActionResult(
+                success=False,
+                summary=(
+                    f"Clicked index {index} at ({x}, {y}) — BLOCKED: same spot tapped "
+                    f"{_CLICK_REPEAT_THRESHOLD}+ times. I pressed BACK for you. "
+                    "Try a different approach: system_button, open_app, swipe, or different index."
+                ),
+            )
+
+        pre_ui = await _macro_pre_ui(ctx)
         await ctx.driver.tap(x, y)
+        _record_click(ctx, x, y)
         _record_macro_action(
             ctx,
             {"action_type": "tap", "x": x, "y": y},
@@ -215,11 +268,38 @@ async def long_press_at(x: int, y: int, *, ctx: "ActionContext") -> ActionResult
 
 
 async def click_at(x: int, y: int, *, ctx: "ActionContext") -> ActionResult:
-    """Click at screen coordinates."""
+    """Click at screen coordinates.
+
+    Detects repeated clicks to the same spot and returns a failure to force
+    the agent to try a different approach.  When triggered, automatically
+    presses the BACK button to dismiss any keyboard or popup that may be
+    blocking progress.
+    """
     try:
-        pre_ui = await _macro_pre_ui(ctx)
         abs_x, abs_y = _convert_action_point(x, y, ctx=ctx)
+
+        if _is_repeated_click(ctx, abs_x, abs_y):
+            _clear_click_history(ctx)
+            # Auto-press BACK to dismiss keyboard / popup
+            try:
+                await ctx.driver.press_button("back")
+            except Exception:
+                pass
+            return ActionResult(
+                success=False,
+                summary=(
+                    f"Tapped at ({abs_x}, {abs_y}) — BLOCKED: you have tapped this same "
+                    f"spot {_CLICK_REPEAT_THRESHOLD}+ times with no effect. "
+                    "I pressed BACK for you to dismiss any keyboard or popup. "
+                    "You MUST now do something DIFFERENT: use open_app to launch an app, "
+                    "swipe to scroll, system_button to navigate, or click a COMPLETELY "
+                    "different area. Do NOT click near this position again."
+                ),
+            )
+
+        pre_ui = await _macro_pre_ui(ctx)
         await ctx.driver.tap(abs_x, abs_y)
+        _record_click(ctx, abs_x, abs_y)
         _record_macro_action(
             ctx,
             {"action_type": "tap", "x": abs_x, "y": abs_y},
@@ -235,12 +315,29 @@ async def click_area(
 ) -> ActionResult:
     """Click center of area."""
     try:
-        pre_ui = await _macro_pre_ui(ctx)
         _validate_screenshot_only_point(x1, y1, ctx=ctx)
         _validate_screenshot_only_point(x2, y2, ctx=ctx)
         cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
         abs_x, abs_y = _convert_action_point(cx, cy, ctx=ctx)
+
+        if _is_repeated_click(ctx, abs_x, abs_y):
+            _clear_click_history(ctx)
+            try:
+                await ctx.driver.press_button("back")
+            except Exception:
+                pass
+            return ActionResult(
+                success=False,
+                summary=(
+                    f"Tapped area center ({abs_x}, {abs_y}) — BLOCKED: same spot tapped "
+                    f"{_CLICK_REPEAT_THRESHOLD}+ times. I pressed BACK for you. "
+                    "Try a different approach."
+                ),
+            )
+
+        pre_ui = await _macro_pre_ui(ctx)
         await ctx.driver.tap(abs_x, abs_y)
+        _record_click(ctx, abs_x, abs_y)
         _record_macro_action(
             ctx,
             {"action_type": "tap", "x": abs_x, "y": abs_y},
@@ -258,6 +355,7 @@ async def type_text(
 ) -> ActionResult:
     """Type text into an indexed element or the currently focused input."""
     try:
+        _clear_click_history(ctx)
         pre_ui = await _macro_pre_ui(ctx)
         if index is not None and index != -1:
             x, y = ctx.ui.get_element_coords(index)
@@ -292,6 +390,7 @@ async def type_text_direct(
 ) -> ActionResult:
     """Type text into the currently focused input."""
     try:
+        _clear_click_history(ctx)
         pre_ui = await _macro_pre_ui(ctx)
         success = await ctx.driver.input_text(text, clear)
         if success:
@@ -311,6 +410,7 @@ async def type_text_direct(
 async def system_button(button: str, *, ctx: "ActionContext") -> ActionResult:
     """Press a system button (back, home, or enter)."""
     try:
+        _clear_click_history(ctx)
         pre_ui = await _macro_pre_ui(ctx)
         await ctx.driver.press_button(button)
         _record_macro_action(
@@ -348,6 +448,7 @@ async def swipe(
         )
 
     try:
+        _clear_click_history(ctx)
         pre_ui = await _macro_pre_ui(ctx)
         start_x, start_y = _convert_action_point(*coordinate, ctx=ctx)
         end_x, end_y = _convert_action_point(*coordinate2, ctx=ctx)
@@ -373,8 +474,39 @@ async def swipe(
         return ActionResult(success=False, summary=f"Failed to swipe: {e}")
 
 
+_PACKAGE_NAME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$")
+
+
+def _is_package_name(text: str) -> bool:
+    """Return True if *text* looks like an Android/iOS package name."""
+    return bool(_PACKAGE_NAME_RE.match(text))
+
+
 async def open_app(text: str, *, ctx: "ActionContext") -> ActionResult:
-    """Open an app by its name."""
+    """Open an app by its name or package name.
+
+    If *text* looks like a fully-qualified package name (e.g.
+    ``com.tencent.mm``), skip the LLM-based app matching and launch
+    directly via ``start_app``.
+    """
+    if _is_package_name(text):
+        # Direct package name — skip LLM matching
+        logger.info(f"open_app: direct package name '{text}', launching directly")
+        pre_ui = await _macro_pre_ui(ctx)
+        driver_log_before = _driver_log_length(ctx)
+        try:
+            result = await ctx.driver.start_app(text)
+            await asyncio.sleep(1)
+            if isinstance(result, str) and result.lower().startswith("failed"):
+                return ActionResult(success=False, summary=result)
+            _record_driver_log_delta(ctx, driver_log_before, pre_ui=pre_ui)
+            return ActionResult(success=True, summary=str(result))
+        except Exception as e:
+            return ActionResult(
+                success=False,
+                summary=f"Failed to open app '{text}': {e.__class__.__name__}: {e}",
+            )
+
     if ctx.app_opener_llm is None:
         return ActionResult(
             success=False,

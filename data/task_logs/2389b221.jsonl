@@ -1,0 +1,4 @@
+{"seq": 1, "msg": "🚀 Starting: 请打开微信应用。\n\n如果应用已经在运行，确保它在前台显示。\n如果应用未安装，报告错误。", "color": "magenta", "level": 20, "timestamp": "2026-06-12T10:17:33.046563"}
+{"seq": 2, "msg": "🤖 Agent mode: direct execution", "color": "cyan", "level": 20, "timestamp": "2026-06-12T10:17:33.052508"}
+{"seq": 3, "msg": "👁️ Vision mode: reasoning=False, vision_only=True, Manager.vision=True, Executor.vision=True, FastAgent.vision=True", "color": "cyan", "level": 20, "timestamp": "2026-06-12T10:17:33.053217"}
+{"seq": 4, "msg": "🚀 Running MobileAgent to achieve goal: 请打开微信应用。\n\n如果应用已经在运行，确保它在前台显示。\n如果应用未安装，报告错误。", "color": "magenta", "level": 20, "timestamp": "2026-06-12T10:17:33.053925"}

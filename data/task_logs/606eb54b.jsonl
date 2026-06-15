@@ -1,0 +1,11 @@
+{"seq": 1, "msg": "🚀 Starting: 在微信中添加好友，手机号是 13261798705。请先打开微信，然后点击通讯录tab，点击新的朋友，在搜索框输入手机号，找到用户后点击添加到通讯录。", "color": "magenta", "level": 20, "timestamp": "2026-06-15T17:50:17.199283"}
+{"seq": 2, "msg": "🤖 Agent mode: direct execution", "color": "cyan", "level": 20, "timestamp": "2026-06-15T17:50:17.200493"}
+{"seq": 3, "msg": "👁️ Vision mode: reasoning=False, vision_only=True, Manager.vision=True, Executor.vision=True, FastAgent.vision=True", "color": "cyan", "level": 20, "timestamp": "2026-06-15T17:50:17.201163"}
+{"seq": 4, "msg": "🚀 Running MobileAgent to achieve goal: 在微信中添加好友，手机号是 13261798705。请先打开微信，然后点击通讯录tab，点击新的朋友，在搜索框输入手机号，找到用户后点击添加到通讯录。", "color": "magenta", "level": 20, "timestamp": "2026-06-15T17:50:17.201810"}
+{"seq": 5, "msg": "🔄 Step 1/25", "color": "magenta", "level": 10, "timestamp": "2026-06-15T17:50:17.309325"}
+{"seq": 6, "msg": "💬 Task input received...", "color": null, "level": 10, "timestamp": "2026-06-15T17:50:17.329977"}
+{"seq": 7, "msg": "📸 Taking screenshot...", "color": null, "level": 10, "timestamp": "2026-06-15T17:50:17.899301"}
+{"seq": 8, "msg": "✏️ Recording UI state", "color": null, "level": 10, "timestamp": "2026-06-15T17:50:18.688483"}
+{"seq": 9, "msg": "❌ Goal failed: Error: [Errno 2] No such file or directory", "color": "red", "level": 20, "timestamp": "2026-06-15T17:50:21.718084"}
+{"seq": 10, "msg": "📸 Taking screenshot...", "color": null, "level": 10, "timestamp": "2026-06-15T17:50:32.196193"}
+{"seq": 11, "msg": "✏️ Recording UI state", "color": null, "level": 10, "timestamp": "2026-06-15T17:50:32.677227"}

@@ -29,6 +29,8 @@ class Task(BaseModel):
     device_serial: str
     goal: str
     status: str = "pending"         # pending / running / completed / cancelled / failed
+    type: str = "normal"            # normal / scheduled
+    parent_task: str = "0"          # "0"=无父级, 否则为父级定时任务 ID
     result: Optional[dict] = None
     created_at: datetime = Field(default_factory=datetime.now)
     started_at: Optional[datetime] = None
@@ -90,6 +92,29 @@ class ChatRequest(BaseModel):
     """对话请求。"""
     message: str
     device_serial: Optional[str] = None
+    device_serials: Optional[list[str]] = None  # 多选设备
+    agent_id: Optional[str] = None
+
+
+class ScheduledTask(BaseModel):
+    """定时任务配置。"""
+    id: str
+    task_id: str
+    agent_id: str
+    goal: str
+    device_serials: list[str]
+    cron_expression: str
+    enabled: bool = True
+    last_run: Optional[datetime] = None
+    next_run: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class ScheduledTaskCreate(BaseModel):
+    """创建定时任务请求。"""
+    goal: str
+    device_serials: list[str]
+    cron_expression: str
     agent_id: Optional[str] = None
 
 
@@ -113,3 +138,32 @@ class DashboardStats(BaseModel):
     total_tasks: int = 0
     running_tasks: int = 0
     completed_tasks: int = 0
+
+
+# ── Chat Bot Models ──
+
+
+class ChatBotRequest(BaseModel):
+    """聊天 Bot 触发请求。"""
+    source: str                       # wechat / whatsapp
+    device_id: Optional[str] = None   # 设备序列号
+    target_chat: Optional[str] = None # 指定聊天对象
+
+
+class ChatRecord(BaseModel):
+    """聊天记录。
+
+    单聊场景：chat_name=对方联系人名, nick_name=消息发送者
+    群聊场景：chat_name=群名, nick_name=该条消息的具体发送者
+    """
+    id: int
+    source: str = Field(description="数据源标识: wechat / whatsapp / qq 等")
+    chat_type: str = Field(description="聊天类型: single(单聊) / group(群聊)")
+    chat_name: str = Field(description="群名或联系人名（标识这个聊天会话）")
+    nick_name: Optional[str] = Field(default=None, description="这条消息的发送者昵称")
+    avatar: Optional[str] = Field(default=None, description="发送者头像URL（可选，预留字段）")
+    content: str = Field(description="消息内容（文本，或[图片]/[表情]等描述）")
+    is_self: bool = Field(description="是否是本设备Agent发送的消息: False=对方发的, True=自己发的")
+    device_id: str = Field(description="设备序列号（标识是哪台设备读取/发送的）")
+    device_user: str = Field(description="Agent在该设备上使用的昵称（默认=设备号，可在代码中配置）")
+    created_at: datetime = Field(description="消息时间（ISO格式，如 2026-06-12T10:30:00）")

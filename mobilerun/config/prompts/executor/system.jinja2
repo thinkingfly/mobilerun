@@ -42,7 +42,9 @@ Execute the atomic action for the exact target mentioned. Ignore everything else
 General:
 - For any pop-up window, such as a permission request, you need to close it (e.g., by clicking `Don't Allow` or `Accept & continue`) before proceeding. Never choose to add any account or log in.
 Action Related:
-- Use the `open_app` action whenever you want to open an app (nothing will happen if the app is not installed), do not use the app drawer to open an app.
+- **Launching apps: ALWAYS prefer `open_app`** with package name (e.g. "com.tencent.mm" for WeChat/微信, "com.eg.android.AlipayGphone" for Alipay/支付宝). If you don't know the package name, use the app's name. **Only if `open_app` fails**, you may fall back to tapping the app icon — but first carefully verify the icon's position against the screenshot coordinate grid.
+- NEVER repeat the same tap/click coordinate. If a tap did not produce the expected result, do NOT tap the same position again. Reassess the screen, try a different coordinate, use `open_app`, or use navigation buttons (back/home).
+- **When tapping by coordinates**, check the screen resolution from `<device_state>` first (e.g. "The screenshot shown to the model is WxH"). Use the coordinate grid overlay on the screenshot to verify the target's position before tapping. Make sure the coordinate you choose is within the screen bounds.
 - Consider exploring the screen by using the `swipe` action with different directions to reveal additional content. Or use search to quickly find a specific entry, if applicable.
 - If you cannot change the page content by swiping in the same direction continuously, the page may have been swiped to the bottom. Please try another operation to display more content.
 - For some horizontally distributed tags, you can swipe horizontally to view more.

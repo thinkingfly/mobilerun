@@ -1,0 +1,4 @@
+{"seq": 1, "msg": "🚀 Starting: 截屏", "color": "magenta", "level": 20, "timestamp": "2026-06-10T20:00:25.483278"}
+{"seq": 2, "msg": "🤖 Agent mode: direct execution", "color": "cyan", "level": 20, "timestamp": "2026-06-10T20:00:25.483945"}
+{"seq": 3, "msg": "👁️ Vision mode: reasoning=False, vision_only=True, Manager.vision=True, Executor.vision=True, FastAgent.vision=True", "color": "cyan", "level": 20, "timestamp": "2026-06-10T20:00:25.484489"}
+{"seq": 4, "msg": "🚀 Running MobileAgent to achieve goal: 截屏", "color": "magenta", "level": 20, "timestamp": "2026-06-10T20:00:25.485117"}

@@ -1,0 +1,19 @@
+{"seq": 1, "msg": "🚀 Starting: 截屏", "color": "magenta", "level": 20, "timestamp": "2026-06-12T16:45:59.250536"}
+{"seq": 2, "msg": "🤖 Agent mode: direct execution", "color": "cyan", "level": 20, "timestamp": "2026-06-12T16:45:59.251463"}
+{"seq": 3, "msg": "👁️ Vision mode: reasoning=False, vision_only=True, Manager.vision=True, Executor.vision=True, FastAgent.vision=True", "color": "cyan", "level": 20, "timestamp": "2026-06-12T16:45:59.252017"}
+{"seq": 4, "msg": "🚀 Running MobileAgent to achieve goal: 截屏", "color": "magenta", "level": 20, "timestamp": "2026-06-12T16:45:59.252622"}
+{"seq": 5, "msg": "🔄 Step 1/25", "color": "magenta", "level": 10, "timestamp": "2026-06-12T16:45:59.388633"}
+{"seq": 6, "msg": "💬 Task input received...", "color": null, "level": 10, "timestamp": "2026-06-12T16:45:59.409820"}
+{"seq": 7, "msg": "📸 Taking screenshot...", "color": null, "level": 10, "timestamp": "2026-06-12T16:45:59.915120"}
+{"seq": 8, "msg": "✏️ Recording UI state", "color": null, "level": 10, "timestamp": "2026-06-12T16:46:00.816297"}
+{"seq": 9, "msg": "🧠 Thinking: 用户要求截屏。我将通过下拉通知栏来访问截屏功能，这是Android设备上常见的截屏方式。", "color": "cyan", "level": 10, "timestamp": "2026-06-12T16:46:26.248782"}
+{"seq": 10, "msg": "⚡ Executing tool calls...", "color": "yellow", "level": 10, "timestamp": "2026-06-12T16:46:26.251251"}
+{"seq": 11, "msg": "⚡ Action result: <function_results>\n<result>\n<name>swipe</name>\n<output>Swiped from (629, 66) to (629, 1062)</output>...", "color": "green", "level": 10, "timestamp": "2026-06-12T16:46:29.313490"}
+{"seq": 12, "msg": "💬 Task input received...", "color": null, "level": 10, "timestamp": "2026-06-12T16:46:29.321901"}
+{"seq": 13, "msg": "📸 Taking screenshot...", "color": null, "level": 10, "timestamp": "2026-06-12T16:46:29.910391"}
+{"seq": 14, "msg": "✏️ Recording UI state", "color": null, "level": 10, "timestamp": "2026-06-12T16:46:30.896187"}
+{"seq": 15, "msg": "🧠 Thinking: 通知栏已打开，我需要继续下拉以显示快捷操作面板中的截屏按钮。", "color": "cyan", "level": 10, "timestamp": "2026-06-12T16:46:40.011614"}
+{"seq": 16, "msg": "⚡ Executing tool calls...", "color": "yellow", "level": 10, "timestamp": "2026-06-12T16:46:40.015031"}
+{"seq": 17, "msg": "⚡ Action result: <function_results>\n<result>\n<name>swipe</name>\n<output>Swiped from (629, 1062) to (629, 1992)</outpu...", "color": "green", "level": 10, "timestamp": "2026-06-12T16:46:43.081915"}
+{"seq": 18, "msg": "💬 Task input received...", "color": null, "level": 10, "timestamp": "2026-06-12T16:46:43.085929"}
+{"seq": 19, "msg": "📸 Taking screenshot...", "color": null, "level": 10, "timestamp": "2026-06-12T16:46:43.708553"}

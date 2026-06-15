@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
     './src/**/*.{js,ts,jsx,tsx,mdx}',
   ],
@@ -7,26 +8,30 @@ module.exports = {
     extend: {
       colors: {
         bg: {
-          primary: '#0a0a0f',
-          secondary: '#12121a',
-          tertiary: '#1a1a26',
+          primary:     'rgb(var(--bg-primary) / <alpha-value>)',
+          secondary:   'rgb(var(--bg-secondary) / <alpha-value>)',
+          tertiary:    'rgb(var(--bg-tertiary) / <alpha-value>)',
         },
         border: {
-          DEFAULT: '#2a2a3a',
-          light: '#3a3a4a',
+          DEFAULT: 'rgb(var(--border) / <alpha-value>)',
+          light:   'rgb(var(--border-light) / <alpha-value>)',
         },
         text: {
-          primary: '#e4e4e7',
-          secondary: '#a1a1aa',
-          muted: '#71717a',
+          primary:   'rgb(var(--text-primary) / <alpha-value>)',
+          secondary: 'rgb(var(--text-secondary) / <alpha-value>)',
+          muted:     'rgb(var(--text-muted) / <alpha-value>)',
         },
         accent: {
-          blue: '#6366f1',
-          green: '#22c55e',
-          red: '#ef4444',
-          yellow: '#f59e0b',
-          cyan: '#06b6d4',
-          purple: '#a855f7',
+          blue:   'rgb(var(--accent-blue) / <alpha-value>)',
+          green:  'rgb(var(--accent-green) / <alpha-value>)',
+          red:    'rgb(var(--accent-red) / <alpha-value>)',
+          yellow: 'rgb(var(--accent-yellow) / <alpha-value>)',
+          cyan:   'rgb(var(--accent-cyan) / <alpha-value>)',
+          purple: 'rgb(var(--accent-purple) / <alpha-value>)',
+        },
+        terminal: {
+          bg:   'rgb(var(--terminal-bg) / <alpha-value>)',
+          text: 'rgb(var(--terminal-text) / <alpha-value>)',
         },
       },
     },

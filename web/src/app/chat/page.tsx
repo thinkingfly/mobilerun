@@ -1,18 +1,18 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Send, X, Eye } from 'lucide-react';
+import { Send, X, Eye, Smartphone, Check, Terminal } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { logWs } from '@/lib/websocket';
 
 const colorMap: Record<string, string> = {
-  blue: 'text-blue-400',
-  cyan: 'text-cyan-400',
-  green: 'text-green-400',
-  red: 'text-red-400',
-  yellow: 'text-yellow-400',
-  magenta: 'text-purple-400',
+  blue: 'text-accent-blue',
+  cyan: 'text-accent-cyan',
+  green: 'text-accent-green',
+  red: 'text-accent-red',
+  yellow: 'text-accent-yellow',
+  magenta: 'text-accent-purple',
   white: 'text-text-primary',
 };
 
@@ -21,6 +21,8 @@ type Message = {
   content: string;
   timestamp: Date;
   compressed?: boolean;
+  taskId?: string;
+  intent?: string;
 };
 
 const WELCOME_MSG: Message = {
@@ -35,6 +37,8 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [agents, setAgents] = useState<any[]>([]);
   const [selectedAgent, setSelectedAgent] = useState('');
+  const [devices, setDevices] = useState<any[]>([]);
+  const [selectedDevices, setSelectedDevices] = useState<string[]>([]);
   const [activeTask, setActiveTask] = useState<{ id: string; goal: string; logs: any[]; status: string; result: any; agentName?: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
@@ -45,12 +49,22 @@ export default function ChatPage() {
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
   const [draftInput, setDraftInput] = useState<string>('');
 
-  // Load agents + auto-select first
+  // Load agents + devices + auto-select first
   useEffect(() => {
     api.agents.list().then(data => {
       setAgents(data);
       if (data.length > 0) {
         setSelectedAgent(prev => prev || data[0].id);
+      }
+    }).catch(console.error);
+
+    // Load online devices
+    api.devices.list().then(data => {
+      const onlineDevices = data.filter((d: any) => d.state !== 'offline');
+      setDevices(onlineDevices);
+      // Auto-select first online device
+      if (onlineDevices.length > 0) {
+        setSelectedDevices([onlineDevices[0].serial]);
       }
     }).catch(console.error);
   }, []);
@@ -67,6 +81,8 @@ export default function ChatPage() {
         content: m.content,
         timestamp: new Date(m.timestamp),
         compressed: m.compressed,
+        taskId: m.task_id,
+        intent: m.intent,
       }));
       const displayMessages = historyMessages.filter((m: any) => m.role !== 'system');
       setMessages(displayMessages.length > 0 ? displayMessages : [WELCOME_MSG]);
@@ -76,56 +92,6 @@ export default function ChatPage() {
         .filter((m: any) => m.role === 'user')
         .map((m: any) => m.content);
       setInputHistory(userMessages);
-
-      // Check if there's a running task to restore
-      // Look for the last task_id mentioned in chat history
-      const lastTaskMsg = [...(data.messages || [])].reverse().find((m: any) => m.task_id);
-      if (lastTaskMsg?.task_id) {
-        // Check if task is still running
-        api.tasks.get(lastTaskMsg.task_id).then(task => {
-          if (cancelled) return;
-          if (task.status === 'running') {
-            const agentName = agents.find((a: any) => a.id === task.agent_id)?.name || task.agent_id;
-            setActiveTask({
-              id: task.id,
-              goal: task.goal,
-              logs: [],
-              status: task.status,
-              result: task.result,
-              agentName,
-            });
-            // Connect WebSocket for logs
-            logWs.connect(task.id);
-            const unsub = logWs.onMessage((entry) => {
-              setActiveTask((prev) => {
-                if (!prev || prev.id !== task.id) return prev;
-                return { ...prev, logs: [...prev.logs, entry] };
-              });
-            });
-            // Store unsubscribe for cleanup
-            activeTaskRef.current = { taskId: task.id, pollInterval: null };
-
-            // Start polling
-            const pollInterval = setInterval(async () => {
-              try {
-                const t = await api.tasks.get(task.id);
-                setActiveTask((prev) => {
-                  if (!prev || prev.id !== task.id) return prev;
-                  if (t.status !== 'running') {
-                    clearInterval(pollInterval);
-                    unsub();
-                    logWs.disconnect();
-                    activeTaskRef.current = { taskId: '', pollInterval: null };
-                    api.agents.list().then(setAgents);
-                  }
-                  return { ...prev, status: t.status, result: t.result };
-                });
-              } catch { /* ignore */ }
-            }, 3000);
-            activeTaskRef.current = { taskId: task.id, pollInterval };
-          }
-        }).catch(() => { /* task not found, ignore */ });
-      }
     }).catch(() => {
       if (!cancelled) setMessages([WELCOME_MSG]);
     });
@@ -179,7 +145,7 @@ export default function ChatPage() {
     setSending(true);
 
     try {
-      const result = await api.chat.send(userMessage.content, selectedAgent);
+      const result = await api.chat.send(userMessage.content, selectedAgent, selectedDevices.length > 0 ? selectedDevices : undefined);
 
       // If a task was created, show it
       if (result.task_id) {
@@ -228,6 +194,8 @@ export default function ChatPage() {
                     content: m.content,
                     timestamp: new Date(m.timestamp),
                     compressed: m.compressed,
+                    taskId: m.task_id,
+                    intent: m.intent,
                   }));
                   const displayMessages = historyMessages.filter((m: any) => m.role !== 'system');
                   setMessages(displayMessages);
@@ -244,8 +212,9 @@ export default function ChatPage() {
 
         const assistantMessage: Message = {
           role: 'assistant',
-          content: `已创建任务：${result.goal || userMessage.content}\nAgent: ${agentName} | 执行中...`,
+          content: result.response || `已创建任务：${result.goal || userMessage.content}\nAgent: ${agentName} | 执行中...`,
           timestamp: new Date(),
+          taskId: result.task_id,
         };
         setMessages((prev) => [...prev, assistantMessage]);
       } else {
@@ -304,6 +273,88 @@ export default function ChatPage() {
     }
   }
 
+  async function fetchTaskLogs(taskId: string) {
+    try {
+      const data = await api.tasks.logs(taskId);
+      if (data.logs && data.logs.length > 0) {
+        setActiveTask(prev => prev && prev.id === taskId ? { ...prev, logs: data.logs } : prev);
+      }
+    } catch { /* no persisted logs */ }
+  }
+
+  async function viewTask(taskId: string) {
+    // If this task is already active, close panel
+    if (activeTask?.id === taskId) {
+      closeActiveTask();
+      return;
+    }
+
+    // Close current task if any
+    if (activeTask) {
+      closeActiveTask();
+    }
+
+    try {
+      const task = await api.tasks.get(taskId);
+      const agentName = agents.find((a: any) => a.id === task.agent_id)?.name || task.agent_id;
+
+      setActiveTask({
+        id: task.id,
+        goal: task.goal,
+        logs: [],
+        status: task.status,
+        result: task.result,
+        agentName,
+      });
+
+      // Load persisted logs
+      fetchTaskLogs(taskId);
+
+      if (task.status === 'running') {
+        // Connect WebSocket for real-time logs
+        logWs.connect(taskId);
+        const unsub = logWs.onMessage((entry) => {
+          setActiveTask(prev => {
+            if (!prev || prev.id !== taskId) return prev;
+            return { ...prev, logs: [...prev.logs, entry] };
+          });
+        });
+
+        // Poll status
+        const pollInterval = setInterval(async () => {
+          try {
+            const t = await api.tasks.get(taskId);
+            setActiveTask(prev => {
+              if (!prev || prev.id !== taskId) return prev;
+              if (t.status !== 'running') {
+                clearInterval(pollInterval);
+                unsub();
+                logWs.disconnect();
+                activeTaskRef.current = { taskId: '', pollInterval: null };
+                api.agents.list().then(setAgents);
+                // Reload chat history
+                api.chat.getHistory(selectedAgent).then(data => {
+                  const historyMessages = (data.messages || []).map((m: any) => ({
+                    role: m.role as 'user' | 'assistant' | 'system',
+                    content: m.content,
+                    timestamp: new Date(m.timestamp),
+                    compressed: m.compressed,
+                    taskId: m.task_id,
+                    intent: m.intent,
+                  }));
+                  setMessages(historyMessages.filter((m: any) => m.role !== 'system'));
+                });
+              }
+              return { ...prev, status: t.status, result: t.result };
+            });
+          } catch { /* ignore */ }
+        }, 3000);
+
+        activeTaskRef.current = { taskId, pollInterval };
+      }
+    } catch { /* task not found */ }
+  }
+
   function closeActiveTask() {
     if (activeTaskRef.current.pollInterval) {
       clearInterval(activeTaskRef.current.pollInterval);
@@ -325,9 +376,9 @@ export default function ChatPage() {
           </p>
         </div>
 
-        {/* Agent Selector */}
-        {agents.length > 0 && (
-          <div className="px-8 py-3 border-b border-border flex items-center gap-3">
+        {/* Agent Selector + Device Selection */}
+        <div className="px-8 py-3 border-b border-border flex flex-col gap-2">
+          <div className="flex items-center gap-3">
             <span className="text-sm text-text-secondary">执行 Agent:</span>
             <select
               value={selectedAgent}
@@ -336,12 +387,61 @@ export default function ChatPage() {
             >
               {agents.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name} {a.device_serial ? `(${a.device_serial})` : ''} {a.status === 'working' ? '🔵' : '🟢'}
+                  {a.name} {a.status === 'working' ? '🔵' : '🟢'}
                 </option>
               ))}
             </select>
           </div>
-        )}
+          {devices.length > 0 && (
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-sm text-text-secondary flex items-center gap-1">
+                <Smartphone className="w-3.5 h-3.5" />
+                目标设备:
+              </span>
+              {devices.map((d) => {
+                const isSelected = selectedDevices.includes(d.serial);
+                return (
+                <label
+                  key={d.serial}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-all border ${
+                    isSelected
+                      ? 'bg-accent-blue/15 border-accent-blue text-accent-blue shadow-sm shadow-accent-blue/10'
+                      : 'bg-bg-tertiary border-border text-text-secondary hover:border-text-muted'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => {
+                      if (isSelected) {
+                        setSelectedDevices(prev => prev.filter(s => s !== d.serial));
+                      } else {
+                        setSelectedDevices(prev => [...prev, d.serial]);
+                      }
+                    }}
+                    className="sr-only"
+                  />
+                  {/* 打勾图标 */}
+                  <span className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${
+                    isSelected
+                      ? 'bg-accent-blue border-accent-blue'
+                      : 'border-border bg-bg-secondary'
+                  }`}>
+                    {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                  </span>
+                  <span className={`w-2 h-2 rounded-full ${
+                    d.state === 'online' ? 'bg-accent-green' :
+                    d.state === 'busy' ? 'bg-accent-blue animate-pulse' :
+                    'bg-text-muted'
+                  }`} />
+                  <span className="font-mono">{d.serial.slice(-6)}</span>
+                  {d.model && <span className="text-text-muted">({d.model})</span>}
+                </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-8 py-6 space-y-4">
@@ -355,11 +455,24 @@ export default function ChatPage() {
                   msg.compressed
                     ? 'bg-bg-tertiary/50 border border-dashed border-border text-text-muted italic'
                     : msg.role === 'user'
-                    ? 'bg-accent-blue text-white'
-                    : 'bg-bg-tertiary text-text-primary border border-border'
+                    ? 'bg-gradient-to-br from-accent-blue to-accent-purple text-white shadow-[0_2px_12px_rgb(var(--accent-blue)/0.2)]'
+                    : 'bg-bg-tertiary text-text-primary border-l-2 border-l-accent-blue/40 border-y border-r border-border'
                 }`}
               >
                 <p className="whitespace-pre-wrap">{msg.content}</p>
+                {msg.taskId && msg.role === 'assistant' && (
+                  <button
+                    onClick={() => viewTask(msg.taskId!)}
+                    className={`mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs transition-all ${
+                      activeTask?.id === msg.taskId
+                        ? 'bg-accent-blue/15 text-accent-blue border border-accent-blue/30'
+                        : 'bg-bg-secondary/80 text-accent-blue hover:bg-accent-blue/10 border border-border hover:border-accent-blue/30'
+                    }`}
+                  >
+                    <Terminal className="w-3 h-3" />
+                    {activeTask?.id === msg.taskId ? '收起日志' : '查看任务'}
+                  </button>
+                )}
                 <p className="text-xs mt-2 text-text-muted">
                   {msg.compressed ? '压缩摘要' : msg.timestamp.toLocaleTimeString('zh-CN')}
                 </p>
@@ -396,12 +509,12 @@ export default function ChatPage() {
               onKeyDown={handleKeyDown}
               placeholder="输入指令，如: 打开抖音点赞"
               disabled={sending}
-              className="flex-1 px-4 py-3 bg-bg-tertiary border border-border rounded-xl text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-blue disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-3 bg-bg-tertiary border border-border rounded-xl text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-blue focus:shadow-[0_0_12px_rgb(var(--accent-blue)/0.15)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             />
             <button
               onClick={sendMessage}
               disabled={sending || !input.trim()}
-              className="px-4 py-3 bg-accent-blue text-white rounded-xl hover:bg-accent-blue/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-3 bg-gradient-to-r from-accent-blue to-accent-purple text-white rounded-xl hover:shadow-[0_0_20px_rgb(var(--accent-blue)/0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send className="w-5 h-5" />
             </button>
@@ -443,9 +556,9 @@ export default function ChatPage() {
           {/* Status */}
           <div className="px-4 py-2 border-b border-border flex items-center gap-2">
             <span className={`inline-block w-2 h-2 rounded-full ${
-              activeTask.status === 'running' ? 'bg-accent-blue animate-pulse' :
-              activeTask.status === 'completed' ? 'bg-green-400' :
-              activeTask.status === 'failed' ? 'bg-red-400' :
+              activeTask.status === 'running' ? 'bg-accent-blue animate-pulse shadow-[0_0_6px_rgb(var(--accent-blue))]' :
+              activeTask.status === 'completed' ? 'bg-accent-green shadow-[0_0_6px_rgb(var(--accent-green))]' :
+              activeTask.status === 'failed' ? 'bg-accent-red' :
               'bg-text-muted'
             }`} />
             <span className="text-xs text-text-secondary capitalize">
@@ -460,7 +573,7 @@ export default function ChatPage() {
           {/* Logs */}
           <div
             ref={logContainerRef}
-            className="flex-1 overflow-y-auto p-3 font-mono text-xs space-y-1 bg-bg-secondary"
+            className="flex-1 overflow-y-auto p-3 font-mono text-xs space-y-1 bg-terminal-bg text-terminal-text"
           >
             {activeTask.logs.length === 0 ? (
               <p className="text-text-muted text-center py-8">

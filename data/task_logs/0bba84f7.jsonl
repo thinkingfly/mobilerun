@@ -1,0 +1,15 @@
+{"seq": 1, "msg": "🚀 Starting: 截屏", "color": "magenta", "level": 20, "timestamp": "2026-06-12T16:50:59.289590"}
+{"seq": 2, "msg": "🤖 Agent mode: direct execution", "color": "cyan", "level": 20, "timestamp": "2026-06-12T16:50:59.290383"}
+{"seq": 3, "msg": "👁️ Vision mode: reasoning=False, vision_only=True, Manager.vision=True, Executor.vision=True, FastAgent.vision=True", "color": "cyan", "level": 20, "timestamp": "2026-06-12T16:50:59.290916"}
+{"seq": 4, "msg": "🚀 Running MobileAgent to achieve goal: 截屏", "color": "magenta", "level": 20, "timestamp": "2026-06-12T16:50:59.291519"}
+{"seq": 5, "msg": "🔄 Step 1/25", "color": "magenta", "level": 10, "timestamp": "2026-06-12T16:50:59.410550"}
+{"seq": 6, "msg": "💬 Task input received...", "color": null, "level": 10, "timestamp": "2026-06-12T16:50:59.475623"}
+{"seq": 7, "msg": "📸 Taking screenshot...", "color": null, "level": 10, "timestamp": "2026-06-12T16:51:00.076359"}
+{"seq": 8, "msg": "✏️ Recording UI state", "color": null, "level": 10, "timestamp": "2026-06-12T16:51:01.233635"}
+{"seq": 9, "msg": "🧠 Thinking: 当前屏幕已经是一张截图，显示了微信\"瞎聊群(4)\"的聊天界面。截图已获取。", "color": "cyan", "level": 10, "timestamp": "2026-06-12T16:51:12.889594"}
+{"seq": 10, "msg": "⚡ Executing tool calls...", "color": "yellow", "level": 10, "timestamp": "2026-06-12T16:51:12.891683"}
+{"seq": 11, "msg": "■ done: 截屏已完成。当前屏幕显示的是微信\"瞎聊群(4)\"聊天界面，包含孙建发送的位置信息、\"@所有人 几点到\"、\"周五几点\"等消息，以及自动回复的导航确认信息。 (1 runs)", "color": "green", "level": 10, "timestamp": "2026-06-12T16:51:12.894096"}
+{"seq": 12, "msg": "■ done: 截屏已完成。当前屏幕显示的是微信\"瞎聊群(4)\"聊天界面，包含孙建发送的位置信息、\"@所有人 几点到\"、\"周五几点\"等消息，以及自动回复的导航确认信息。 (1 runs)", "color": "green", "level": 10, "timestamp": "2026-06-12T16:51:12.896532"}
+{"seq": 13, "msg": "🎉 Goal achieved: 截屏已完成。当前屏幕显示的是微信\"瞎聊群(4)\"聊天界面，包含孙建发送的位置信息、\"@所有人 几点到\"、\"周五几点\"等消息，以及自动回复的导航确认信息。", "color": "green", "level": 20, "timestamp": "2026-06-12T16:51:12.901310"}
+{"seq": 14, "msg": "📸 Taking screenshot...", "color": null, "level": 10, "timestamp": "2026-06-12T16:51:13.716827"}
+{"seq": 15, "msg": "✏️ Recording UI state", "color": null, "level": 10, "timestamp": "2026-06-12T16:51:14.211291"}

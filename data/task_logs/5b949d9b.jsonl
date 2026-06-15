@@ -1,0 +1,4 @@
+{"seq": 1, "msg": "🚀 Starting: 在微信中添加好友，手机号是 13261798708。请先打开微信，然后点击通讯录tab，点击新的朋友，在搜索框输入手机号，找到用户后点击添加到通讯录。", "color": "magenta", "level": 20, "timestamp": "2026-06-15T18:24:41.402638"}
+{"seq": 2, "msg": "🤖 Agent mode: direct execution", "color": "cyan", "level": 20, "timestamp": "2026-06-15T18:24:41.406040"}
+{"seq": 3, "msg": "👁️ Vision mode: reasoning=False, vision_only=True, Manager.vision=True, Executor.vision=True, FastAgent.vision=True", "color": "cyan", "level": 20, "timestamp": "2026-06-15T18:24:41.406772"}
+{"seq": 4, "msg": "🚀 Running MobileAgent to achieve goal: 在微信中添加好友，手机号是 13261798708。请先打开微信，然后点击通讯录tab，点击新的朋友，在搜索框输入手机号，找到用户后点击添加到通讯录。", "color": "magenta", "level": 20, "timestamp": "2026-06-15T18:24:41.407487"}

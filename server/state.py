@@ -50,6 +50,22 @@ class AppState:
                     logger.warning(f"Failed to load task {td.get('id')}: {e}")
             logger.info(f"Loaded {len(self._tasks)} tasks from storage")
 
+            # 启动清理：将所有 running 任务标记为 failed（重启后异步协程已丢失）
+            stale_count = 0
+            for task in self._tasks.values():
+                if task.status == "running":
+                    task.status = "failed"
+                    task.finished_at = datetime.now()
+                    task.result = {"success": False, "reason": "服务重启，任务中断"}
+                    storage.update_task(task.id, {
+                        "status": "failed",
+                        "finished_at": task.finished_at.isoformat(),
+                        "result": task.result,
+                    })
+                    stale_count += 1
+            if stale_count:
+                logger.info(f"Marked {stale_count} stale running tasks as failed")
+
             # 加载 Agent
             raw_agents = storage.load_agents()
             for ad in raw_agents:
@@ -98,11 +114,13 @@ class AppState:
 
     # ── 任务管理 ──
 
-    def list_tasks(self, status: Optional[str] = None) -> list[Task]:
+    def list_tasks(self, status: Optional[str] = None, type: Optional[str] = None) -> list[Task]:
         with self._lock:
             tasks = list(self._tasks.values())
         if status:
             tasks = [t for t in tasks if t.status == status]
+        if type:
+            tasks = [t for t in tasks if t.type == type]
         return sorted(tasks, key=lambda t: t.created_at, reverse=True)
 
     def get_task(self, task_id: str) -> Optional[Task]:
@@ -140,6 +158,18 @@ class AppState:
             task = self._tasks.get(task_id)
             if task:
                 task.log_count += 1
+
+    def list_child_tasks(self, parent_task_id: str) -> list[Task]:
+        """获取某个父任务下的所有子任务。"""
+        with self._lock:
+            return [t for t in self._tasks.values() if t.parent_task == parent_task_id]
+
+    def cancel_scheduled_children(self, scheduled_task_id: str):
+        """取消定时任务下所有运行中的子任务。"""
+        children = self.list_child_tasks(scheduled_task_id)
+        for child in children:
+            if child.status == "running":
+                self.cancel_task(child.id)
 
     # ── Agent 管理 ──
 
