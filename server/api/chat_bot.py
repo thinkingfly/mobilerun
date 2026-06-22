@@ -104,6 +104,8 @@ async def trigger_chat_bot_reply(req: ChatBotRequest):
                 agent_id=agent_id,
                 task_id=task_id,
                 log_handler=ws_handler,
+                monitor=req.monitor,
+                monitor_interval=req.monitor_interval,
             )
             # 更新任务状态
             t = state.get_task(task_id)

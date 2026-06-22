@@ -120,6 +120,7 @@ class ScheduledTaskCreate(BaseModel):
 
 class LogEntry(BaseModel):
     """日志条目。"""
+    seq: Optional[int] = None
     msg: str
     color: Optional[str] = None
     stream: bool = False
@@ -148,6 +149,8 @@ class ChatBotRequest(BaseModel):
     source: str                       # wechat / whatsapp
     device_id: Optional[str] = None   # 设备序列号
     target_chat: Optional[str] = None # 指定聊天对象
+    monitor: bool = False             # 是否启用监控模式（持续监听新消息）
+    monitor_interval: int = 30        # 监控间隔秒数（默认 30）
 
 
 class ChatRecord(BaseModel):

@@ -48,6 +48,7 @@ class WebSocketLogHandler(logging.Handler):
             color = getattr(record, "color", None)
             levelno = getattr(record, "levelno", 0) or 0
             entry = LogEntry(
+                seq=self._count,
                 msg=msg,
                 color=color,
                 level=levelno,

@@ -123,6 +123,49 @@ CREATE INDEX IF NOT EXISTS idx_chat_records_source ON chat_records(source);
 CREATE INDEX IF NOT EXISTS idx_chat_records_chat ON chat_records(chat_name, source);
 CREATE INDEX IF NOT EXISTS idx_chat_records_time ON chat_records(created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_records_device ON chat_records(device_id);
+
+-- RAG 文档表：存储上传的政策文档
+CREATE TABLE IF NOT EXISTS rag_documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    parsed_text TEXT,
+    chunk_count INTEGER DEFAULT 0,
+    language TEXT DEFAULT 'auto',
+    uploaded_at TEXT NOT NULL,
+    status TEXT DEFAULT 'active'
+);
+
+CREATE INDEX IF NOT EXISTS idx_rag_docs_status ON rag_documents(status);
+
+-- RAG 问答历史表
+CREATE TABLE IF NOT EXISTS rag_chat_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    source TEXT NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    language TEXT,
+    source_docs TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_rag_history_session ON rag_chat_history(session_id, source);
+CREATE INDEX IF NOT EXISTS idx_rag_history_time ON rag_chat_history(created_at);
+
+-- 群组配置表
+CREATE TABLE IF NOT EXISTS chat_groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_name TEXT NOT NULL,
+    source TEXT NOT NULL,
+    device_id TEXT,
+    default_language TEXT DEFAULT 'pt',
+    rag_enabled INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL,
+    UNIQUE(chat_name, source, device_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_groups_source ON chat_groups(source);
 """
 
 
@@ -713,6 +756,182 @@ class SQLiteStorage:
                 f"SELECT COUNT(*) FROM chat_records {where}", params
             ).fetchone()[0]
             return count
+
+    # ── RAG 文档 ──
+
+    def append_rag_document(self, doc: dict) -> int:
+        """添加 RAG 文档。返回文档 ID。"""
+        with self._lock:
+            d = dict(doc)
+            if "uploaded_at" in d and isinstance(d["uploaded_at"], datetime):
+                d["uploaded_at"] = d["uploaded_at"].isoformat()
+            cursor = self._conn.execute(
+                """INSERT INTO rag_documents
+                   (filename, file_path, parsed_text, chunk_count, language, uploaded_at, status)
+                   VALUES (:filename, :file_path, :parsed_text, :chunk_count, :language, :uploaded_at, :status)""",
+                d,
+            )
+            self._conn.commit()
+            return cursor.lastrowid
+
+    def load_rag_documents(self, status: str = None) -> list[dict]:
+        """加载 RAG 文档列表。"""
+        with self._lock:
+            sql = "SELECT * FROM rag_documents"
+            params = []
+            if status:
+                sql += " WHERE status = ?"
+                params.append(status)
+            sql += " ORDER BY uploaded_at DESC"
+            rows = self._conn.execute(sql, params).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_rag_document(self, doc_id: int) -> Optional[dict]:
+        """获取单个 RAG 文档。"""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM rag_documents WHERE id = ?", (doc_id,)
+            ).fetchone()
+            return dict(row) if row else None
+
+    def delete_rag_document(self, doc_id: int):
+        """删除 RAG 文档（标记为 archived）。"""
+        with self._lock:
+            self._conn.execute(
+                "UPDATE rag_documents SET status = 'archived' WHERE id = ?",
+                (doc_id,),
+            )
+            self._conn.commit()
+
+    def update_rag_document(self, doc_id: int, updates: dict):
+        """更新 RAG 文档信息。"""
+        with self._lock:
+            sets = ", ".join(f"{k} = ?" for k in updates)
+            vals = list(updates.values()) + [doc_id]
+            self._conn.execute(
+                f"UPDATE rag_documents SET {sets} WHERE id = ?", vals
+            )
+            self._conn.commit()
+
+    # ── RAG 问答历史 ──
+
+    def append_rag_chat_history(self, record: dict) -> int:
+        """添加 RAG 问答历史。返回记录 ID。"""
+        with self._lock:
+            r = dict(record)
+            if "created_at" in r and isinstance(r["created_at"], datetime):
+                r["created_at"] = r["created_at"].isoformat()
+            if "source_docs" in r and isinstance(r["source_docs"], list):
+                r["source_docs"] = json.dumps(r["source_docs"])
+            cursor = self._conn.execute(
+                """INSERT INTO rag_chat_history
+                   (session_id, source, question, answer, language, source_docs, created_at)
+                   VALUES (:session_id, :source, :question, :answer, :language, :source_docs, :created_at)""",
+                r,
+            )
+            self._conn.commit()
+            return cursor.lastrowid
+
+    def get_rag_chat_history(
+        self, session_id: str = None, source: str = None, limit: int = 50
+    ) -> list[dict]:
+        """获取 RAG 问答历史。"""
+        with self._lock:
+            conditions = []
+            params = []
+            if session_id:
+                conditions.append("session_id = ?")
+                params.append(session_id)
+            if source:
+                conditions.append("source = ?")
+                params.append(source)
+
+            where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+            params.append(limit)
+
+            rows = self._conn.execute(
+                f"""SELECT * FROM rag_chat_history
+                    {where}
+                    ORDER BY created_at DESC LIMIT ?""",
+                params,
+            ).fetchall()
+
+            result = [dict(r) for r in rows]
+            for r in result:
+                if r.get("source_docs") and isinstance(r["source_docs"], str):
+                    try:
+                        r["source_docs"] = json.loads(r["source_docs"])
+                    except json.JSONDecodeError:
+                        r["source_docs"] = []
+            result.reverse()
+            return result
+
+    # ── 群组配置 ──
+
+    def append_chat_group(self, group: dict) -> int:
+        """添加群组配置。返回配置 ID。"""
+        with self._lock:
+            g = dict(group)
+            if "created_at" in g and isinstance(g["created_at"], datetime):
+                g["created_at"] = g["created_at"].isoformat()
+            if "rag_enabled" in g and isinstance(g["rag_enabled"], bool):
+                g["rag_enabled"] = 1 if g["rag_enabled"] else 0
+            cursor = self._conn.execute(
+                """INSERT OR IGNORE INTO chat_groups
+                   (chat_name, source, device_id, default_language, rag_enabled, created_at)
+                   VALUES (:chat_name, :source, :device_id, :default_language, :rag_enabled, :created_at)""",
+                g,
+            )
+            self._conn.commit()
+            return cursor.lastrowid
+
+    def load_chat_groups(self, source: str = None) -> list[dict]:
+        """加载群组配置列表。"""
+        with self._lock:
+            sql = "SELECT * FROM chat_groups"
+            params = []
+            if source:
+                sql += " WHERE source = ?"
+                params.append(source)
+            sql += " ORDER BY created_at DESC"
+            rows = self._conn.execute(sql, params).fetchall()
+            result = [dict(r) for r in rows]
+            for r in result:
+                r["rag_enabled"] = bool(r.get("rag_enabled", 1))
+            return result
+
+    def get_chat_group(self, chat_name: str, source: str) -> Optional[dict]:
+        """获取单个群组配置。"""
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM chat_groups WHERE chat_name = ? AND source = ?",
+                (chat_name, source),
+            ).fetchone()
+            if row:
+                d = dict(row)
+                d["rag_enabled"] = bool(d.get("rag_enabled", 1))
+                return d
+            return None
+
+    def update_chat_group(self, chat_name: str, source: str, updates: dict):
+        """更新群组配置。"""
+        with self._lock:
+            sets = ", ".join(f"{k} = ?" for k in updates)
+            vals = list(updates.values()) + [chat_name, source]
+            self._conn.execute(
+                f"UPDATE chat_groups SET {sets} WHERE chat_name = ? AND source = ?",
+                vals,
+            )
+            self._conn.commit()
+
+    def delete_chat_group(self, chat_name: str, source: str):
+        """删除群组配置。"""
+        with self._lock:
+            self._conn.execute(
+                "DELETE FROM chat_groups WHERE chat_name = ? AND source = ?",
+                (chat_name, source),
+            )
+            self._conn.commit()
 
     def close(self):
         """关闭数据库连接。"""

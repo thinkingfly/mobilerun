@@ -6,13 +6,14 @@ Mobilerun 是一个通过自然语言控制 Android 设备的 Agent 系统。用
 
 **核心能力**：
 - 自然语言对话控制 Android 设备
-- **Supervisor 多 Agent 架构**：协调者 Agent 统一路由到专业 Agent（Device/ChatBot/Query/Schedule）
-- 6 种意图识别：设备操作、状态查询、任务管理、Agent 管理、定时任务、普通聊天
+- **Supervisor 多 Agent 架构**：协调者 Agent 统一路由到专业 Agent（Device/ChatBot/Query/Schedule/RAG）
+- 7 种意图识别：设备操作、状态查询、任务管理、Agent 管理、定时任务、普通聊天、**政策问答（RAG）**
 - 双执行模式：FastAgent（直接执行） / Manager+Executor（推理规划）
 - 纯视觉模式（vision_only）：截图 + LLM 视觉识别，可操作微信/支付宝等安全 App
 - 自动 vision_only 检测：根据关键词自动切换模式
 - **多设备执行**：对话时勾选多台设备，同一指令同时下发到所有选中设备
 - **聊天 Bot（Chat Bot Agent）**：微信/WhatsApp 自动回复，读取聊天记录 → 生成回复 → 发送
+- **RAG 智能问答（RAG Agent）**：上传政策文档 → 向量化存储 → 多语言问答 → 自动翻译，集成到群组自动回复
 - **定时任务（Cron）**：自然语言创建定时任务（如"每天早上9点打开微信"），后台自动调度执行
 - **任务层级关系**：定时任务不直接执行，触发时创建普通子任务执行，通过 `parent_task` 字段关联
 - **定时任务生命周期**：定时任务创建后保持 running 状态，直到被取消；子任务记录每次执行历史
@@ -20,7 +21,7 @@ Mobilerun 是一个通过自然语言控制 Android 设备的 Agent 系统。用
 - **日志持久化**：任务执行日志同时推送到 WebSocket 和写入 JSONL 文件，支持事后查看
 - 实时日志流（WebSocket）：前端可看到每步执行情况
 - 设备自动发现（ADB 扫描）
-- 持久化存储（SQLite）：任务、Agent、对话历史、定时任务、聊天记录
+- 持久化存储（SQLite）：任务、Agent、对话历史、定时任务、聊天记录、**RAG 文档/问答历史/群组配置**
 
 ## 二、技术栈
 
@@ -29,11 +30,14 @@ Mobilerun 是一个通过自然语言控制 Android 设备的 Agent 系统。用
 | 后端 | Python 3.12, FastAPI, uvicorn |
 | Agent 框架 | LangGraph（对话理解 + 设备管理） |
 | LLM | Qwen3.7-plus（阿里云 DashScope） |
+| **Embedding** | **text-embedding-v3（阿里云 Qwen，OpenAI 兼容接口）** |
+| **向量数据库** | **ChromaDB（持久化，余弦相似度）** |
+| **RAG** | **文档解析（python-docx/PyPDF2）+ 语义切片 + 多语言问答 + 自动翻译** |
 | 设备连接 | ADB + Portal（Android 无障碍服务） |
 | 前端 | Next.js 14, React, Tailwind CSS |
 | 实时通信 | WebSocket（日志推送） |
 | 定时调度 | croniter + asyncio（cron 表达式解析 + 调度循环） |
-| 持久化 | SQLite（任务/Agent/对话/定时任务/聊天记录） |
+| 持久化 | SQLite（任务/Agent/对话/定时任务/聊天记录/**RAG 文档/问答历史/群组配置**） |
 
 ## 三、目录结构
 
@@ -63,30 +67,43 @@ mobilerun/
 │   │   ├── agents.py            # Agent CRUD + 记忆管理
 │   │   ├── devices.py           # 设备管理 + ADB 扫描
 │   │   ├── scheduled_tasks.py   # 定时任务 CRUD + cancel + history
+│   │   ├── rag.py               # RAG API（文档管理/问答/群组配置）
 │   │   └── ws.py                # WebSocket 日志流
 │   ├── websocket/               # WebSocket 管理
 │   │   ├── manager.py           # 连接管理 + 缓冲队列
 │   │   └── log_handler.py       # 日志 Handler（推送到 WS + 持久化到 JSONL）
 │   ├── scheduler.py             # 定时任务调度器（asyncio + croniter）
+│   ├── rag/                     # RAG 智能问答模块
+│   │   ├── __init__.py          # 模块入口
+│   │   ├── document_parser.py   # 文档解析（Word/PDF/TXT）
+│   │   ├── language_detector.py # 语言检测（langdetect）
+│   │   ├── text_splitter.py     # 语义切片（段落分割，保持语义完整）
+│   │   ├── embedding.py         # Embedding（阿里云 Qwen text-embedding-v3）
+│   │   ├── vectorstore.py       # 向量存储（ChromaDB 持久化）
+│   │   ├── retriever.py         # 文档检索（相似度匹配 + 过滤）
+│   │   ├── chat_engine.py       # 对话引擎（多语言问答 + LLM 生成 + 翻译）
+│   │   └── agent.py             # RAG Agent（Supervisor 模式，政策关键词检测）
 │   └── langgraph/               # LangGraph Agent
 │       ├── agents/              # 专业 Agent（Supervisor 模式）
-│       │   ├── __init__.py      # Agent 包入口（触发注册）
+│       │   ├── __init__.py      # Agent 包入口（触发注册，RAG 在 app.py 延迟注册）
 │       │   ├── base.py          # BaseAgent 基类 + AgentResult + AgentContext
 │       │   ├── registry.py      # AgentRegistry 注册表
 │       │   ├── device_agent.py  # 设备操作 Agent（通用 App 操作）
-│       │   ├── chat_bot_agent.py # 聊天 Bot Agent（微信/WhatsApp 自动回复）
+│       │   ├── chat_bot_agent.py # 聊天 Bot Agent（微信/WhatsApp 自动回复，集成 RAG）
 │       │   ├── query_agent.py   # 状态查询 Agent（设备/任务/Agent 查询）
 │       │   └── schedule_agent.py # 定时任务 Agent（cron 调度）
-│       ├── dialogue_agent.py    # Supervisor 协调者（意图解析 + Agent 路由）
+│       ├── dialogue_agent.py    # Supervisor 协调者（意图解析 + Agent 路由，含 rag_question）
 │       ├── device_agent.py      # 低级设备执行（ADB 操作，被 agents/device_agent 调用）
-│       ├── chat_bot_agent.py    # 聊天 Bot 核心逻辑（打开App/读消息/生成回复/发送）
+│       ├── chat_bot_agent.py    # 聊天 Bot 核心逻辑（打开App/读消息/RAG+LLM回复/发送）
 │       ├── chat_bot_config.py   # 聊天 App 配置（注册表/读取模式/关键词检测）
 │       ├── chat_bot_prompts.py  # 聊天 Bot 提示词模板
 │       ├── tools.py             # 工具函数（execute_goal + async）
-│       └── utils.py             # LLM 调用工具
+│       └── utils.py             # LLM 调用工具（全局配置：LLM_API_KEY/LLM_BASE_URL/LLM_MODEL）
 ├── mobilerun_api.py             # 统一 API 入口（run/run_async）
 ├── data/                        # SQLite 数据库文件 + 日志
 │   ├── checkpoints.db           # SQLite 数据库
+│   ├── chroma_db/               # ChromaDB 向量数据库（RAG）
+│   ├── rag_documents/           # 上传的 RAG 原始文档
 │   └── task_logs/               # 任务执行日志（JSONL 格式）
 │       └── {task_id}.jsonl      # 每个任务一个日志文件
 ├── web/                         # Next.js 前端
@@ -97,9 +114,13 @@ mobilerun/
 │       │   ├── tasks/page.tsx   # 任务列表（定时任务面板+展开+筛选）
 │       │   ├── tasks/[id]/page.tsx  # 任务详情（实时日志+子任务+定时任务详情）
 │       │   ├── agents/page.tsx  # Agent 管理
-│       │   └── devices/page.tsx # 设备管理
+│       │   ├── devices/page.tsx # 设备管理
+│       │   └── rag/             # RAG 管理页面
+│       │       ├── page.tsx     # 文档管理（列表/上传/删除）
+│       │       ├── upload/page.tsx  # 文档上传（文件选择/语言标记/进度）
+│       │       └── groups/page.tsx  # 群组配置（CRUD/语言/RAG开关）
 │       └── lib/
-│           ├── api.ts           # API 客户端
+│           ├── api.ts           # API 客户端（含 ragApi）
 │           └── websocket.ts     # WebSocket 客户端
 └── start.sh                     # 一键启动脚本
 ```
@@ -203,16 +224,16 @@ FastAgent response：
 ```
 Entry → parse_intent (LLM) → resolve_device → select_agent (AgentRegistry)
                                                       │
-                              ┌───────────┬───────────┼───────────┬──────────┐
-                              ▼           ▼           ▼           ▼          ▼
-                        device_agent  chat_bot    query_agent  schedule    chat
-                              │        _agent           │        _agent       │
-                              │           │             │          │          │
-                              ▼           ▼             ▼          ▼          ▼
-                         DeviceAgent  ChatBotAgent  QueryAgent  ScheduleAgent handle_chat
-                         .execute()   .execute()    .execute()  .execute()   (LLM)
-                              │           │             │          │          │
-                              └───────────┴─────────────┴──────────┴──────────┘
+                              ┌───────────┬───────────┼───────────┬──────────┬──────────┐
+                              ▼           ▼           ▼           ▼          ▼          ▼
+                        device_agent  chat_bot    query_agent  schedule    chat      rag_agent
+                              │        _agent           │        _agent       │          │
+                              │           │             │          │          │          │
+                              ▼           ▼             ▼          ▼          ▼          ▼
+                         DeviceAgent  ChatBotAgent  QueryAgent  ScheduleAgent handle_chat RagAgent
+                         .execute()   .execute()    .execute()  .execute()   (LLM)     .execute()
+                              │           │             │          │          │          │
+                              └───────────┴─────────────┴──────────┴──────────┴──────────┘
                                                     │
                                                     ▼
                                                    END
@@ -223,10 +244,14 @@ Entry → parse_intent (LLM) → resolve_device → select_agent (AgentRegistry)
 | 意图 | 选中 Agent | Agent 行为 |
 |------|-----------|-----------|
 | `operate_device`（非聊天类） | `device_agent` | 调用 execute_goal 创建设备操作任务 |
-| `operate_device`（微信/WhatsApp + 回复等） | `chat_bot_agent` | 打开App → 进入聊天 → 读取消息 → 生成回复 → 发送 |
+| `operate_device`（微信/WhatsApp + 回复等） | `chat_bot_agent` | 打开App → 进入聊天 → 读取消息 → **RAG 政策回复** → 生成回复 → 发送 |
 | `query_status` / `manage_task` / `manage_agent` | `query_agent` | 查询设备状态、任务列表、取消任务等 |
 | `schedule_task` | `schedule_agent` | 创建定时任务（解析 cron + 写入 DB） |
 | `chat` | 直接处理 | LLM 生成友好回复 |
+| `rag_question`（政策/薪资/规则等） | `rag_agent` | 便捷入口：内部客服在对话界面直接查询政策（**非核心场景**） |
+
+> **RAG 核心流程**：不在上表中，而是内嵌在 `chat_bot_agent` 的 `generate_reply()` 中。
+> 当群组自动回复检测到政策关键词时，直接调用 `_try_rag_reply()` 使用 RAG 回答，不走 Supervisor 路由。
 
 **Agent 注册表（AgentRegistry）**：
 - 所有 Agent 实现 `BaseAgent` 接口：`name` / `description` / `can_handle()` / `execute()`
@@ -269,6 +294,15 @@ Entry → parse_intent (LLM) → resolve_device → select_agent (AgentRegistry)
 | `chat_messages` | 对话历史（Agent 关联） |
 | `scheduled_tasks` | 定时任务配置（cron 表达式/设备/启用状态） |
 | `chat_records` | 聊天记录（从微信/WhatsApp 读取的消息） |
+| **`rag_documents`** | **RAG 文档（文件名/路径/解析文本/切片数/语言/状态）** |
+| **`rag_chat_history`** | **RAG 问答历史（会话ID/问题/回答/语言/引用文档）** |
+| **`chat_groups`** | **群组配置（群名/来源/默认语言/RAG开关）** |
+
+**向量数据库** (`data/chroma_db/`)：
+
+| 集合名 | 用途 | 结构 |
+|--------|------|------|
+| `rag_documents` | RAG 文档向量存储 | ID: `{doc_id}_{chunk_index}`, embedding, document(切片原文), metadata: {doc_id, filename, language, chunk_index} |
 
 **tasks 表关键字段**：
 - `type`: `normal`（普通任务）
@@ -510,6 +544,143 @@ class BaseAgent(ABC):
 
 **AgentResult**：包含 success / response / task_id / data
 
+### 4.17 RAG 智能问答系统
+
+**整体架构**：
+
+```
+用户上传文档（Word/PDF/TXT）
+    │
+    ▼
+document_parser.py         # 解析文档文本
+    │
+    ▼
+language_detector.py       # 检测文档语言（langdetect）
+    │
+    ▼
+text_splitter.py           # 语义切片（~400字/片，50字重叠）
+    │
+    ▼
+embedding.py               # 阿里云 Qwen Embedding（text-embedding-v3）
+    │
+    ▼
+vectorstore.py             # ChromaDB 持久化存储（余弦相似度）
+    │
+    ▼
+用户提问（中/葡/英等）
+    │
+    ▼
+language_detector.py       # 检测问题语言
+    │
+    ▼
+retriever.py               # 相似度检索 top_k=5 相关切片
+    │
+    ▼
+chat_engine.py             # 构建 Prompt → LLM 生成回答（用问题语言）
+    │
+    ├── 如果回答语言≠中文 → translate_text() 翻译为中文
+    │
+    ▼
+返回 {answer, language, source_docs, translation}
+```
+
+**多语言问答语言优先级**：
+1. 用户提问语言（自动检测：字符集优先，再 langdetect 辅助）
+2. 后台配置的群组默认语言（`chat_groups.default_language`）
+3. 文档原文语言
+
+> **支持任意语言**：系统不硬编码语言列表，LLM 能理解 ISO 639-1 语言代码。
+> 常用语言（中/英/葡/西/法/德/日/韩等 30+）有预定义名称，其他语言代码直接透传。
+
+**RAG 集成到 Chat Bot Agent**（私聊 + 群聊自动回复）：
+
+```
+generate_reply() 收到聊天历史
+    │
+    ├── 找到最后一条非自己的消息
+    │
+    ├── _try_rag_reply(message, chat_name, source, chat_type)
+    │   ├── is_policy_related(message)    # 检查政策关键词（中/葡/英）
+    │   │   └── 不相关 → return None，走普通 LLM 回复
+    │   │
+    │   ├── 私聊（chat_type="single"）
+    │   │   └── rag_enabled 默认 True → 直接调用 RAG
+    │   │
+    │   ├── 群聊（chat_type="group"）
+    │   │   ├── 查询 chat_groups 配置
+    │   │   ├── rag_enabled=False → 跳过 RAG
+    │   │   └── rag_enabled=True → 继续
+    │   │
+    │   ├── RagChatEngine.chat(question, session_id=chat_name, ...)
+    │   │   ├── 检索相关文档切片
+    │   │   ├── LLM 生成回答（问题语言）
+    │   │   └── 可选：翻译为中文
+    │   │
+    │   └── 返回回答（含翻译）或 None（无结果则回退普通 LLM）
+    │
+    └── 普通 LLM 回复（非政策相关或 RAG 无结果时）
+```
+
+> **私聊 vs 群聊**：
+> - 私聊：只要消息包含政策关键词，自动触发 RAG（无需额外配置）
+> - 群聊：需先在后台配置群组并启用 `rag_enabled`，才触发 RAG
+
+**政策关键词检测**（`server/rag/agent.py`）：
+```python
+POLICY_KEYWORDS = [
+    # 中文：政策/规则/薪资/工资/提现/佣金/奖励/钻石/任务/主播/招聘/培训/级别/等级
+    # 葡萄牙语（无重音）：politica/salario/regra/comissao/diamante/saque/bonus/nivel...
+    # 葡萄牙语（有重音）：política/salário/regras/comissão/diamantes/bônus/nível...
+    # 英语：policy/salary/commission/withdrawal/rule/diamond/bonus/level...
+]
+```
+
+**RAG Agent（Supervisor 模式，便捷入口）**：
+- `name = "rag_agent"`
+- `can_handle()`: 意图为 `rag_question`（在对话界面直接问政策问题时触发）
+- `execute()`: 调用 `RagChatEngine.chat()` → 返回回答 + 引用来源日志
+
+> **注意**：RAG 的**核心使用场景不是**独立意图，而是集成在 `chat_bot_agent` 的 `generate_reply()` 中。
+> 群组自动回复时，检测到政策关键词 → 直接调用 `_try_rag_reply()` → RAG 回答。
+> `RagAgent` 只是为内部客服在对话界面直接查询政策提供便捷入口。
+
+**全局 LLM 配置共享**：
+RAG 模块与主系统共用同一套 LLM 配置，来自 `server/langgraph/utils.py`：
+```python
+LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "https://coding.dashscope.aliyuncs.com/v1")
+LLM_API_KEY = os.environ.get("LLM_API_KEY", "") or "sk-sp-..."
+LLM_MODEL = os.environ.get("LLM_MODEL", "qwen3.7-plus")
+EMBEDDING_MODEL = "text-embedding-v3"  # Embedding 固定模型
+```
+
+**循环导入处理**：
+`server/rag/agent.py` 依赖 `server.langgraph.agents.base`，但注册时需要 `registry`。
+为避免循环导入，RAG Agent 在 `server/app.py` lifespan 中延迟注册：
+```python
+# app.py lifespan
+from server.rag.agent import RagAgent
+from server.langgraph.agents.registry import registry
+if "rag_agent" not in registry._agents:
+    registry.register(RagAgent())
+```
+
+### 4.18 RAG 群组配置
+
+**群组配置表 `chat_groups`**：
+
+| 字段 | 类型 | 含义 | 示例 |
+|------|------|------|------|
+| `chat_name` | TEXT | 群名（唯一标识） | "巴西主播群" |
+| `source` | TEXT | 来源（wechat/whatsapp） | "wechat" |
+| `device_id` | TEXT | 绑定设备（可选） | "2MM..." |
+| `default_language` | TEXT | 默认回答语言 | "pt"（葡萄牙语） |
+| `rag_enabled` | INTEGER | RAG 是否启用 | 1/0 |
+
+**用途**：
+- Agent 监控群组时，根据配置决定是否使用 RAG 回答政策相关问题
+- 每个群组可设置默认回答语言，RAG 优先使用该语言生成回答
+- 未配置的群组默认启用 RAG，使用自动检测语言
+
 ## 五、核心 API 接口
 
 ### REST API
@@ -549,6 +720,15 @@ class BaseAgent(ABC):
 | GET | `/api/chat-bot/records` | 获取聊天记录（支持 source/chat_name/device_id 筛选） |
 | GET | `/api/chat-bot/chats` | 获取聊天列表（按聊天名称分组） |
 | GET | `/api/chat-bot/stats` | 聊天记录统计 |
+| **GET** | **`/api/rag/documents`** | **RAG 文档列表（支持 status 过滤）** |
+| **POST** | **`/api/rag/documents/upload`** | **上传文档（multipart：file + language）** |
+| **DELETE** | **`/api/rag/documents/{id}`** | **删除文档（从向量库+DB 移除）** |
+| **POST** | **`/api/rag/chat`** | **RAG 问答（question/session_id/source/language）** |
+| **GET** | **`/api/rag/history`** | **RAG 问答历史（支持 session_id/source 过滤）** |
+| **GET** | **`/api/rag/groups`** | **群组配置列表** |
+| **POST** | **`/api/rag/groups`** | **添加群组配置** |
+| **PUT** | **`/api/rag/groups/{name}`** | **更新群组配置（语言/RAG开关）** |
+| **DELETE** | **`/api/rag/groups/{name}`** | **删除群组配置** |
 
 ### WebSocket
 
@@ -808,6 +988,113 @@ curl "http://localhost:8080/api/chat-bot/stats"
 # 预期: 返回 total_records 总数
 ```
 
+#### K. RAG 智能问答测试
+```bash
+# ── 文档管理 ──
+
+# 获取文档列表
+curl http://localhost:8080/api/rag/documents
+# 预期: 返回文档列表，包含 id/filename/language/chunk_count/status
+
+# 上传文档（Word/PDF/TXT）
+curl -X POST http://localhost:8080/api/rag/documents/upload \
+  -F "file=@policy.pdf" -F "language=auto"
+# 预期: 返回 {id, filename, language, chunk_count, message:"文档上传成功"}
+# - 文档被解析为文本
+# - 文本被语义切片（~400字/片）
+# - 每个切片被 Embedding 并存入 ChromaDB
+# - 文档元信息存入 rag_documents 表
+
+# 上传文档（手动标记语言）
+curl -X POST http://localhost:8080/api/rag/documents/upload \
+  -F "file=@policy.docx" -F "language=pt"
+# 预期: language="pt"，跳过自动检测
+
+# 删除文档
+curl -X DELETE http://localhost:8080/api/rag/documents/{id}
+# 预期: 从 ChromaDB 删除对应切片，DB 中标记 status=archived
+
+# ── RAG 问答 ──
+
+# 中文提问（回答用中文）
+curl -X POST http://localhost:8080/api/rag/chat \
+  -H "Content-Type: application/json" \
+  -d '{"question": "薪资怎么算？", "session_id": "test", "source": "web"}'
+# 预期:
+# - language: "zh"（自动检测为中文）
+# - answer: 中文回答（基于检索到的葡萄牙语文档翻译/生成）
+# - source_docs: 引用文档列表
+# - translation: ""（回答已是中文，无需翻译）
+
+# 葡萄牙语提问（回答用葡萄牙语 + 附中文翻译）
+curl -X POST http://localhost:8080/api/rag/chat \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Como funciona o salário?", "session_id": "test", "source": "web", "include_translation": true}'
+# 预期:
+# - language: "pt"
+# - answer: 葡萄牙语回答
+# - translation: 对应的中文翻译
+
+# 指定回答语言
+curl -X POST http://localhost:8080/api/rag/chat \
+  -H "Content-Type: application/json" \
+  -d '{"question": "薪资怎么算？", "session_id": "test", "source": "web", "language": "pt"}'
+# 预期: language="pt"，强制用葡萄牙语回答
+
+# 查看问答历史
+curl "http://localhost:8080/api/rag/history?limit=10"
+# 预期: 返回问答历史列表，包含 question/answer/language/source_docs
+
+# ── 群组配置 ──
+
+# 获取群组列表
+curl http://localhost:8080/api/rag/groups
+# 预期: 返回群组配置列表
+
+# 添加群组配置
+curl -X POST http://localhost:8080/api/rag/groups \
+  -H "Content-Type: application/json" \
+  -d '{"chat_name": "巴西主播群", "source": "wechat", "default_language": "pt", "rag_enabled": true}'
+# 预期: 返回 {id, message:"群组配置已添加"}
+
+# 更新群组配置（关闭 RAG）
+curl -X PUT "http://localhost:8080/api/rag/groups/巴西主播群?source=wechat" \
+  -H "Content-Type: application/json" \
+  -d '{"rag_enabled": false}'
+# 预期: 该群组自动回复将不再使用 RAG
+
+# 更新群组配置（修改默认语言）
+curl -X PUT "http://localhost:8080/api/rag/groups/巴西主播群?source=wechat" \
+  -H "Content-Type: application/json" \
+  -d '{"default_language": "zh"}'
+# 预期: 该群组 RAG 回答将使用中文
+
+# 删除群组配置
+curl -X DELETE "http://localhost:8080/api/rag/groups/巴西主播群?source=wechat"
+# 预期: 删除配置，未配置的群组默认启用 RAG
+
+# ── RAG 集成到聊天 Bot 测试 ──
+
+# 模拟：群组中有人问政策问题 → chat_bot_agent.generate_reply() 调用 _try_rag_reply()
+# 注意：需要群组已配置且 rag_enabled=True
+
+# 通过聊天 Bot 触发（需要设备在线）
+curl -X POST http://localhost:8080/api/chat-bot/reply \
+  -H "Content-Type: application/json" \
+  -d '{"source": "wechat", "target_chat": "巴西主播群"}'
+# 预期流程:
+# 1. 读取群聊记录
+# 2. 最后一条消息是政策相关（如 "薪资怎么算？"）
+# 3. _try_rag_reply() 被调用
+# 4. 查询 chat_groups 配置 → rag_enabled=True
+# 5. RagChatEngine.chat() 生成回答
+# 6. 回答包含葡萄牙语原文 + 中文翻译
+# 7. 发送到群聊
+
+# 直接调用 _try_rag_reply 验证（单元测试）
+# 见 tests/test_rag.py
+```
+
 ### 6.3 模式对比测试
 
 | 测试场景 | 参数 | 预期 |
@@ -882,6 +1169,24 @@ curl "http://localhost:8080/api/chat-bot/stats"
 - [ ] GET /api/tasks/{id}/logs 返回正确的日志列表
 - [ ] WebSocket 和文件同时收到日志
 
+**RAG 智能问答**：
+- [ ] 上传 Word/PDF/TXT 文档成功，解析+切片+向量化正常
+- [ ] 文档列表 API 返回正确数据
+- [ ] 删除文档从向量库和 DB 同时清除
+- [ ] 中文提问 → 中文回答
+- [ ] 葡萄牙语提问 → 葡萄牙语回答 + 中文翻译
+- [ ] 指定回答语言参数生效
+- [ ] 问答历史正确记录
+- [ ] 群组配置 CRUD 正常（添加/更新/删除）
+- [ ] 群组 `rag_enabled=False` 时不触发 RAG
+- [ ] 私聊政策问题自动触发 RAG（无需配置）
+- [ ] 群聊政策问题触发 RAG（需配置 rag_enabled=True）
+- [ ] 非政策问题不走 RAG，走普通 LLM 回复
+- [ ] RAG 无结果时回退到普通 LLM 回复
+- [ ] 政策关键词检测支持中文/葡萄牙语（含重音）/英语
+- [ ] RagAgent 在 Supervisor 中正确注册（app.py lifespan）
+- [ ] 无循环导入问题
+
 ## 七、已知限制
 
 1. **max_steps=25**：复杂多步骤任务可能不足（如打开微信→找群→读取聊天记录）
@@ -918,6 +1223,18 @@ curl "http://localhost:8080/api/chat-bot/stats"
 | 修改聊天记录存储 | `server/db.py`（chat_records 表）+ `server/models.py`（ChatRecord） |
 | 修改聊天 Bot API | `server/api/chat_bot.py`（reply/records/chats/stats） |
 | 修改启动清理逻辑 | `server/state.py`（_load_from_storage） |
+| **修改 RAG 文档解析** | **`server/rag/document_parser.py`（parse_word/parse_pdf/parse_txt）** |
+| **修改 RAG 文本切片** | **`server/rag/text_splitter.py`（semantic_split）** |
+| **修改 RAG Embedding** | **`server/rag/embedding.py`（get_embedding/get_embeddings）** |
+| **修改 RAG 向量存储** | **`server/rag/vectorstore.py`（RagVectorStore + ChromaDB）** |
+| **修改 RAG 检索逻辑** | **`server/rag/retriever.py`（RagRetriever.retrieve）** |
+| **修改 RAG 对话引擎** | **`server/rag/chat_engine.py`（RagChatEngine.chat + translate_text）** |
+| **修改 RAG 政策关键词** | **`server/rag/agent.py`（POLICY_KEYWORDS + is_policy_related）** |
+| **修改 RAG API** | **`server/api/rag.py`（文档管理/问答/群组配置路由）** |
+| **修改聊天 Bot RAG 集成** | **`server/langgraph/chat_bot_agent.py`（_try_rag_reply + generate_reply）** |
+| **修改 RAG Agent 注册** | **`server/app.py`（lifespan 延迟注册）** |
+| **修改 RAG 意图识别** | **`server/langgraph/dialogue_agent.py`（SYSTEM_PROMPT 增加 rag_question）** |
+| **修改 RAG 前端页面** | **`web/src/app/rag/`（文档管理/上传/群组配置页面）** |
 | 添加新 API | `server/api/` 新增路由文件 |
 | 修改前端页面 | `web/src/app/` 对应页面 |
 | 修改数据模型 | `server/models.py` |

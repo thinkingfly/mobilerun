@@ -1,0 +1,15 @@
+{"seq": 1, "msg": "🚀 Starting: 截屏", "color": "magenta", "level": 20, "timestamp": "2026-06-16T15:55:01.248810"}
+{"seq": 2, "msg": "🤖 Agent mode: direct execution", "color": "cyan", "level": 20, "timestamp": "2026-06-16T15:55:01.249539"}
+{"seq": 3, "msg": "👁️ Vision mode: reasoning=False, vision_only=True, Manager.vision=True, Executor.vision=True, FastAgent.vision=True", "color": "cyan", "level": 20, "timestamp": "2026-06-16T15:55:01.250072"}
+{"seq": 4, "msg": "🚀 Running MobileAgent to achieve goal: 截屏", "color": "magenta", "level": 20, "timestamp": "2026-06-16T15:55:01.250732"}
+{"seq": 5, "msg": "🔄 Step 1/25", "color": "magenta", "level": 10, "timestamp": "2026-06-16T15:55:01.369426"}
+{"seq": 6, "msg": "💬 Task input received...", "color": null, "level": 10, "timestamp": "2026-06-16T15:55:01.388732"}
+{"seq": 7, "msg": "📸 Taking screenshot...", "color": null, "level": 10, "timestamp": "2026-06-16T15:55:01.900591"}
+{"seq": 8, "msg": "✏️ Recording UI state", "color": null, "level": 10, "timestamp": "2026-06-16T15:55:02.689528"}
+{"seq": 9, "msg": "🧠 Thinking: 当前屏幕已经是微信主界面，截图已获取。", "color": "cyan", "level": 10, "timestamp": "2026-06-16T15:55:11.978198"}
+{"seq": 10, "msg": "⚡ Executing tool calls...", "color": "yellow", "level": 10, "timestamp": "2026-06-16T15:55:11.979993"}
+{"seq": 11, "msg": "■ done: 截屏已完成。当前显示的是微信主界面，包含多个聊天会话，顶部显示\"微信(4)\"表示有4条未读消息。可见的聊天包括：3w、服务号、文件传输助手、公众号、滴滴代驾等。 (1 runs)", "color": "green", "level": 10, "timestamp": "2026-06-16T15:55:11.981863"}
+{"seq": 12, "msg": "■ done: 截屏已完成。当前显示的是微信主界面，包含多个聊天会话，顶部显示\"微信(4)\"表示有4条未读消息。可见的聊天包括：3w、服务号、文件传输助手、公众号、滴滴代驾等。 (1 runs)", "color": "green", "level": 10, "timestamp": "2026-06-16T15:55:11.983706"}
+{"seq": 13, "msg": "🎉 Goal achieved: 截屏已完成。当前显示的是微信主界面，包含多个聊天会话，顶部显示\"微信(4)\"表示有4条未读消息。可见的聊天包括：3w、服务号、文件传输助手、公众号、滴滴代驾等。", "color": "green", "level": 20, "timestamp": "2026-06-16T15:55:11.987696"}
+{"seq": 14, "msg": "📸 Taking screenshot...", "color": null, "level": 10, "timestamp": "2026-06-16T15:55:13.164468"}
+{"seq": 15, "msg": "✏️ Recording UI state", "color": null, "level": 10, "timestamp": "2026-06-16T15:55:13.682737"}

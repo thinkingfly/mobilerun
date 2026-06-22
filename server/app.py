@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from server.api import agents, chat, devices, tasks, ws
 from server.api import scheduled_tasks
 from server.api import chat_bot
+from server.api import rag
 from server.scheduler import scheduler
 from server.state import state
 
@@ -21,6 +22,18 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理。"""
     # 启动
     logger.info("Mobilerun Agent Dashboard 启动中...")
+
+    # 延迟注册 RAG Agent（避免循环导入）
+    # agents/__init__.py 加载完成后，再注册 RAG Agent
+    try:
+        from server.rag.agent import RagAgent
+        from server.langgraph.agents.registry import registry
+        if "rag_agent" not in registry._agents:
+            registry.register(RagAgent())
+        logger.info("RAG Agent 注册成功")
+    except Exception as e:
+        logger.warning(f"RAG Agent 注册失败（非致命）：{e}")
+
     # 启动设备监控
     monitor_task = asyncio.create_task(device_monitor_loop())
     # 启动定时任务调度器
@@ -77,6 +90,7 @@ def create_app() -> FastAPI:
     app.include_router(chat.router, prefix="/api")
     app.include_router(scheduled_tasks.router, prefix="/api")
     app.include_router(chat_bot.router, prefix="/api")
+    app.include_router(rag.router)
 
     # 仪表盘统计
     @app.get("/api/stats")

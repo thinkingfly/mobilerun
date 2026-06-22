@@ -1,0 +1,89 @@
+Perguntas Frequentes (FAQ) — Seeta
+Política de Streamers & Política da Agência
+
+Parte 1 — Política de Streamers
+Q1: Qual é o critério para determinar meu nível semanal?
+Resposta: O nível semanal é determinado pelo total de diamantes (💎) recebidos como presentes na semana anterior. O sistema atribui automaticamente seu nível a cada início de semana, com base no desempenho da semana anterior. Quanto maior o nível, maior o salário base diário.
+
+Nível Semanal    Presentes Recebidos na Semana Anterior (💎)
+SSS    1.500.000 💎
+SS2    800.000 💎
+SS1    500.000 💎
+S3    300.000 💎
+S2    200.000 💎
+S1    120.000 💎
+A2    60.000 💎
+A1    35.000 💎
+B2    20.000 💎
+B1    10.000 💎
+
+Q2: Quais tarefas diárias preciso fazer para receber o salário base do dia?
+Resposta: Você deve completar duas tarefas principais todos os dias:
+Transmitir ao vivo por 2 horas (na sua própria sala de transmissão)
+Participar da câmera de outra streamer mulher por 1 hora
+Além disso, streamers dos níveis A1 a B2 precisam receber adicionalmente 5 presentes "Ligar" no dia.
+
+Q3: Sou nova na plataforma. Quanto posso ganhar?
+Resposta: Nos primeiros 7 dias após o registro, você está no período de proteção para iniciantes. Independentemente do nível, você ganha $1,80 por dia ao completar as seguintes tarefas:
+Transmitir ao vivo por 1 hora na sua própria sala
+Participar da câmera de outra streamer mulher por 2 horas
+Após os 7 dias, você entra automaticamente no sistema normal de níveis.
+
+Q4: Como os diamantes são convertidos para dólares? Qual o valor mínimo de saque?
+Resposta:
+Taxa de câmbio: 5.000 💎 = US$ 1,00
+Valor mínimo de saque: US$ 2,00
+Método de saque: Pix
+
+Q5: O que acontece se eu usar dados falsos no cadastro?
+Resposta: Todos os seus diamantes serão confiscados imediatamente. É obrigatório usar suas informações pessoais reais no cadastro. Dados falsos não são tolerados em hipótese alguma.
+
+Q6: Como funciona o acúmulo da recompensa diária de presentes?
+Resposta: A recompensa diária de presentes é distribuída em etapas, com base no total de diamantes acumulados no dia. O contador é zerado todo dia. Veja as faixas:
+
+Presentes Acumulados no Dia    Recompensa na Etapa    Recompensa Total Acumulada
+5.000 💎    5.000 💎    5.000 💎
+10.000 💎    5.000 💎    10.000 💎
+20.000 💎    10.000 💎    20.000 💎
+30.000 💎    10.000 💎    30.000 💎
+
+Exemplo: Se você receber 20.000 💎 em presentes em um dia, ganha mais 20.000 💎 como recompensa.
+
+Q7: O que é proibido durante as transmissões?
+Resposta:
+Qualquer conteúdo adulto, pornográfico ou sexualmente explícito em transmissões públicas
+Menores de idade não podem usar a plataforma
+
+Parte 2 — Política da Agência
+Q8: Como funciona o salário de recrutamento? O que é uma "nova âncora ativa"?
+Resposta: O salário de recrutamento é calculado por faixas, com base no número de novas âncoras ativas:
+
+Novas Âncoras Ativas    Salário de Recrutamento
+10    US$ 10
+20    US$ 20
+30    US$ 30
+40    US$ 40
+50    US$ 50
+100    US$ 100
+200    US$ 200
+
+Definição: "Nova âncora ativa" é uma nova streamer que completa pelo menos um dia de tarefas para iniciantes dentro de 7 dias após o registro.
+
+Q9: Como é calculada a comissão da agência? O que conta como "renda do trabalho"?
+Resposta: A comissão é calculada por faixas, com base na renda total do trabalho da equipe:
+
+Renda do Trabalho da Equipe    Comissão (%)
+US$ 200    10%
+US$ 500    12%
+US$ 1.000    15%
+US$ 2.000    20%
+
+Definição: "Renda do trabalho" é a soma total dos ganhos em diamantes (presentes) de todos os streamers da equipe, excluindo todas as recompensas da plataforma.
+Importante: A agência é obrigada a organizar a participação de todos os streamers no treinamento padronizado para aumentar sua renda. Este treinamento é obrigatório.
+
+Q10: Quando e como recebo o pagamento?
+Resposta:
+Ciclo de pagamento: Semanal
+Dia de pagamento: Toda quarta-feira, referente à semana anterior
+Métodos disponíveis: Binance ou Pix
+Taxas: Binance — sem tarifas

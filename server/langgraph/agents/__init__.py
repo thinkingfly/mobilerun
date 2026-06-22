@@ -11,6 +11,9 @@ from server.langgraph.agents import (  # noqa: F401
     schedule_agent,
 )
 
+# 注意：RAG Agent 在 server/app.py 启动时延迟注册，
+# 避免循环导入（rag/agent.py → agents.base → agents/__init__.py → rag/agent.py）
+
 __all__ = [
     "AgentContext",
     "AgentResult",

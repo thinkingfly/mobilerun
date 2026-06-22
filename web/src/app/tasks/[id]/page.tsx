@@ -70,7 +70,16 @@ export default function TaskDetailPage() {
     try {
       const data = await api.tasks.logs(taskId);
       if (data.logs && data.logs.length > 0) {
-        setLogs(data.logs);
+        // 使用函数式更新，合并 API 历史日志和已收到的 WebSocket 日志
+        // 避免竞态条件：WebSocket 可能先于 API 响应到达
+        setLogs((prev) => {
+          const apiLogs = data.logs || [];
+          if (prev.length === 0) return apiLogs;
+          // 以 seq 为基准去重，保留 API 日志 + WebSocket 独有的新日志
+          const apiSeqs = new Set(apiLogs.map((l: any) => l.seq));
+          const wsOnly = prev.filter((p: any) => !apiSeqs.has(p.seq));
+          return [...apiLogs, ...wsOnly];
+        });
       }
     } catch { /* no persisted logs */ }
   }
@@ -88,8 +97,12 @@ export default function TaskDetailPage() {
 
     const unsubscribe = logWs.onMessage((entry) => {
       setLogs((prev) => {
-        // 避免 WebSocket 重复推送已有的日志
-        if (prev.some(l => l.msg === entry.msg && l.color === entry.color)) return prev;
+        // 用 seq 去重（更可靠），若无 seq 则回退到 msg+color 匹配
+        if (entry.seq) {
+          if (prev.some(l => l.seq === entry.seq)) return prev;
+        } else if (prev.some(l => l.msg === entry.msg && l.color === entry.color)) {
+          return prev;
+        }
         return [...prev, entry];
       });
     });

@@ -8,6 +8,8 @@ import {
   Bot,
   ListTodo,
   MessageSquare,
+  FileText,
+  Users,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
@@ -17,6 +19,8 @@ const navItems = [
   { name: 'Agent', href: '/agents/', icon: Bot },
   { name: '任务', href: '/tasks/', icon: ListTodo },
   { name: '对话', href: '/chat/', icon: MessageSquare },
+  { name: '文档管理', href: '/rag/', icon: FileText },
+  { name: '群组配置', href: '/rag/groups/', icon: Users },
 ];
 
 export function Sidebar() {

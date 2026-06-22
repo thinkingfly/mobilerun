@@ -87,6 +87,24 @@ class TaskScheduler:
                 if next_run > now:
                     continue
 
+                # 防重入：检查是否有子任务还在运行
+                from server.state import state
+                child_tasks = state.list_child_tasks(st["id"])
+                running_children = [t for t in child_tasks if t.status == "running"]
+                if running_children:
+                    logger.info(
+                        f"定时任务 {st['id']} 跳过：上一个子任务 "
+                        f"{running_children[0].id} 仍在运行中"
+                    )
+                    # 仍然更新 next_run，避免下一分钟又触发
+                    cron = croniter(st["cron_expression"], now)
+                    new_next = cron.get_next(datetime)
+                    storage.update_scheduled_task(st["id"], {
+                        "last_run": now.isoformat(),
+                        "next_run": new_next.isoformat(),
+                    })
+                    continue
+
                 # 触发执行
                 goal = st["goal"]
                 agent_id = st["agent_id"]
